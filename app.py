@@ -117,17 +117,25 @@ Job Description:
                     output[:300].replace("\n", " ")
                 ])
 
-# 📊 Tracker Log Viewer
+# Secure admin access option
 st.markdown("---")
 st.subheader("📊 Application Tracker & Log")
+
+# Admin key input
+admin_key = st.text_input("🔑 Admin key (leave blank if not admin)", type="password")
+is_admin = admin_key == st.secrets["ADMIN_KEY"]
 
 if st.checkbox("Show My Application Log"):
     try:
         df = pd.read_csv("application_log.csv", names=["Timestamp", "User", "Job Title", "Model Used", "Output Preview"])
         df["Timestamp"] = pd.to_datetime(df["Timestamp"])
-        df = df[df["User"] == user_id]
-        df = df.sort_values("Timestamp", ascending=False)
 
+        if not is_admin:
+            df = df[df["User"] == user_id]
+        else:
+            st.success("🔓 Admin access enabled — viewing all user logs.")
+
+        df = df.sort_values("Timestamp", ascending=False)
         st.info(f"Hello **{user_id}**! You have submitted **{len(df)}** applications.")
         st.dataframe(df, use_container_width=True)
 
