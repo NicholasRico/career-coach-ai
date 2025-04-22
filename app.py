@@ -72,6 +72,7 @@ with st.container():
     job_description = st.text_area("📝 Paste job description here", height=250)
     model_choice = st.selectbox("🤖 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
     log_this = st.checkbox("🗃️ Log this application", value=True)
+    expand_bullets = st.checkbox("➕ Generate more bullet options")
 
 # --- Bulk JD ---
 st.markdown("---")
@@ -113,9 +114,10 @@ if st.button("✨ Generate AI Career Materials"):
         st.stop()
 
     for jd in job_descriptions:
+        bullet_prompt = "five" if expand_bullets else "two"
         prompt = f"""
 You are an expert career coach AI. Using the resume below and the job description provided, return:
-1. Two tailored resume bullet points.
+1. {bullet_prompt.capitalize()} tailored resume bullet points.
 2. A personalized cover letter (3 short paragraphs max).
 3. A short outreach message to the hiring manager.
 
