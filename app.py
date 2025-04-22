@@ -30,7 +30,7 @@ st.markdown(
     f"""
     <style>
     .stApp {{
-        background-image: url("{background_image_url}");
+        background-image: url(\"{background_image_url}\");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -66,8 +66,8 @@ st.markdown("## Job Application Tailoring")
 # Inputs
 with st.container():
     resume_file = st.file_uploader("📌 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
-    job_description = st.text_area("📝 Paste job description here", height=250)
-    model_choice = st.selectbox("🤖 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
+    job_description = st.text_area("📜 Paste job description here", height=250)
+    model_choice = st.selectbox("🧠 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -105,6 +105,7 @@ def extract_text_from_docx(file):
 if st.button("Generate AI Career Materials"):
     if resume_file:
         resume_text = extract_text_from_pdf(resume_file) if resume_file.name.endswith(".pdf") else extract_text_from_docx(resume_file)
+        st.session_state.resume_text = resume_text
     else:
         st.error("Please upload a resume.")
         st.stop()
@@ -118,6 +119,8 @@ if st.button("Generate AI Career Materials"):
     else:
         st.error("Please paste a job description or upload a CSV.")
         st.stop()
+
+    st.session_state.job_description = job_descriptions[0]
 
     for jd in job_descriptions:
         if refresh_section:
@@ -155,6 +158,9 @@ Job Description:
                 temperature=0.7
             )
             output = response.choices[0].message.content
+            st.session_state.cover_letter = output.split("\n\n")[1]
+            st.session_state.outreach = output.split("\n\n")[2]
+
             st.success("✅ Generated Successfully!")
 
             st.markdown("---")
@@ -162,10 +168,33 @@ Job Description:
             st.markdown(output.split("\n\n")[0])
 
             if not refresh_section:
-                st.subheader("📄 Cover Letter")
-                st.markdown(output.split("\n\n")[1])
-                st.subheader("💬 Outreach Message")
-                st.markdown(output.split("\n\n")[2])
+                st.subheader("📜 Cover Letter")
+                st.markdown(st.session_state.cover_letter)
+                regenerate_cl = st.button("Regenerate Cover Letter")
+                if regenerate_cl:
+                    cl_prompt = f"Rewrite this cover letter to align with the following instruction: {custom_feedback}. Resume: {resume_text} Job Description: {job_description}"
+                    with st.spinner("Regenerating cover letter..."):
+                        cl_resp = client.chat.completions.create(
+                            model=model_choice,
+                            messages=[{"role": "user", "content": cl_prompt}],
+                            temperature=0.7
+                        )
+                        st.session_state.cover_letter = cl_resp.choices[0].message.content
+                        st.markdown(st.session_state.cover_letter)
+
+                st.subheader("🖌️ Outreach Message")
+                st.markdown(st.session_state.outreach)
+                regenerate_outreach = st.button("Regenerate Outreach Message")
+                if regenerate_outreach:
+                    msg_prompt = f"Regenerate a short recruiter outreach message based on this resume and job description. Make it reflect this feedback: {custom_feedback}"
+                    with st.spinner("Regenerating outreach message..."):
+                        msg_resp = client.chat.completions.create(
+                            model=model_choice,
+                            messages=[{"role": "user", "content": msg_prompt}],
+                            temperature=0.7
+                        )
+                        st.session_state.outreach = msg_resp.choices[0].message.content
+                        st.markdown(st.session_state.outreach)
 
             # Save to doc
             doc_out = Document()
@@ -215,4 +244,3 @@ if st.checkbox("📁 Show Application Log"):
         st.download_button("Download Log as CSV", data=csv_data, file_name="career_applications_log.csv", mime="text/csv")
     except FileNotFoundError:
         st.warning("No application log found yet. Generate your first application to start logging!")
-
