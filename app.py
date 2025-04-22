@@ -71,23 +71,26 @@ with st.container():
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        log_this = st.checkbox("🗓️ Log this application", value=True)
+        log_this = st.checkbox("Log this application", value=True)
     with col2:
-        expand_bullets = st.checkbox("➕ Generate more bullet options")
+        expand_bullets = st.checkbox("Generate more bullet options")
     with col3:
-        refresh_section = st.checkbox("🔀 Refresh only resume bullets")
+        refresh_section = st.checkbox("Refresh only resume bullets")
+
+custom_feedback = st.text_input("Optional: Enter tone/style instructions (e.g. confident, concise, persuasive)")
+st.caption("Need ideas? Try: Professional, Friendly, Persuasive, Confident, Concise")
 
 # --- Bulk JD ---
 st.markdown("---")
-st.markdown("## 📁 Bulk Job Descriptions")
+st.markdown("## Bulk Job Descriptions")
 st.caption("You can optionally download a CSV template and upload multiple job descriptions to process.")
 
 sample_csv = """Job Description
 This is where you'd paste job description #1.
 This is job description #2.
 """
-st.download_button("📅 Download Template CSV", data=sample_csv, file_name="job_description_template.csv")
-bulk_jd_file = st.file_uploader("📄 Upload Bulk Job Descriptions CSV", type="csv")
+st.download_button("Download Template CSV", data=sample_csv, file_name="job_description_template.csv")
+bulk_jd_file = st.file_uploader("Upload Bulk Job Descriptions CSV", type="csv")
 
 # Helper functions
 def extract_text_from_pdf(file):
@@ -99,7 +102,7 @@ def extract_text_from_docx(file):
     return "\n".join([para.text for para in doc.paragraphs])
 
 # Generation Trigger
-if st.button("✨ Generate AI Career Materials"):
+if st.button("Generate AI Career Materials"):
     if resume_file:
         resume_text = extract_text_from_pdf(resume_file) if resume_file.name.endswith(".pdf") else extract_text_from_docx(resume_file)
     else:
@@ -129,11 +132,14 @@ Job Description:
 """
         else:
             bullet_prompt = "five" if expand_bullets else "two"
+            feedback_note = f"The user added this customization instruction: {custom_feedback}" if custom_feedback else ""
             prompt = f"""
 You are an expert career coach AI. Using the resume below and the job description provided, return:
 1. {bullet_prompt.capitalize()} tailored resume bullet points.
 2. A personalized cover letter (3 short paragraphs max).
 3. A short outreach message to the hiring manager.
+
+{feedback_note}
 
 Resume:
 {resume_text}
@@ -167,7 +173,7 @@ Job Description:
             doc_out.add_paragraph(output)
             doc_buffer = io.BytesIO()
             doc_out.save(doc_buffer)
-            st.download_button("📄 Download as Word File", doc_buffer.getvalue(), file_name="CareerCoachOutput.docx")
+            st.download_button("Download as Word File", doc_buffer.getvalue(), file_name="CareerCoachOutput.docx")
 
             # Logging
             if log_this:
@@ -206,6 +212,6 @@ if st.checkbox("📁 Show Application Log"):
         st.dataframe(df, use_container_width=True)
 
         csv_data = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📅 Download Log as CSV", data=csv_data, file_name="career_applications_log.csv", mime="text/csv")
+        st.download_button("Download Log as CSV", data=csv_data, file_name="career_applications_log.csv", mime="text/csv")
     except FileNotFoundError:
         st.warning("No application log found yet. Generate your first application to start logging!")
