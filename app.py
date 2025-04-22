@@ -7,20 +7,11 @@ import csv
 from datetime import datetime
 import pandas as pd
 import io
+import base64
+import os
 
 # ✅ First Streamlit command
 st.set_page_config(page_title="Career Coach AI", page_icon="🧠")
-st.markdown("""
-    <style>
-    .stApp {
-        background-image: url("https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-hero-ng.png");
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        background-position: center top;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
 # 🔐 Password protection
 password = st.text_input("🔒 Enter access password", type="password")
@@ -28,13 +19,34 @@ if password != st.secrets["APP_PASSWORD"]:
     st.warning("This app is password protected. Enter the correct password to continue.")
     st.stop()
 
-# 🎨 Branded Welcome
+# 🎨 Set custom background based on session state
 if "started" not in st.session_state:
     st.session_state.started = False
 
+# Select appropriate background image
+background_image = "hero" if not st.session_state.started else "content"
+image_path = f".streamlit/assets/career-coach-{background_image}.jpg"
+with open(image_path, "rb") as img_file:
+    encoded_string = base64.b64encode(img_file.read()).decode()
+
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/jpg;base64,{encoded_string}");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-position: center top;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# 🎨 Branded Welcome
 if not st.session_state.started:
     st.title("🧠 Career Coach AI")
-    st.image("https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-hero-ng.jpg", use_container_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
 
