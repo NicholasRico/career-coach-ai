@@ -14,7 +14,7 @@ import os
 st.set_page_config(page_title="Career Coach AI", page_icon="🧠")
 
 # 🔐 Password protection
-password = st.text_input("🔒 Enter access password", type="password")
+password = st.text_input("🔐 Enter access password", type="password")
 if password != st.secrets["APP_PASSWORD"]:
     st.warning("This app is password protected. Enter the correct password to continue.")
     st.stop()
@@ -41,7 +41,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
 # 🎨 Branded Welcome
 if not st.session_state.started:
     st.title("🧠 Career Coach AI")
@@ -66,23 +65,24 @@ st.markdown("## 📄 Job Application Tailoring")
 
 # Inputs
 with st.container():
-    resume_file = st.file_uploader("📎 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
+    resume_file = st.file_uploader("📌 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
     job_description = st.text_area("📝 Paste job description here", height=250)
     model_choice = st.selectbox("🤖 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
-    log_this = st.checkbox("🗃️ Log this application", value=True)
+    log_this = st.checkbox("🗓️ Log this application", value=True)
     expand_bullets = st.checkbox("➕ Generate more bullet options")
+    refresh_section = st.checkbox("🌀 Refresh only resume bullets")
 
 # --- Bulk JD ---
 st.markdown("---")
-st.markdown("## 📑 Bulk Job Descriptions")
+st.markdown("## 📁 Bulk Job Descriptions")
 st.caption("You can optionally download a CSV template and upload multiple job descriptions to process.")
 
 sample_csv = """Job Description
 This is where you'd paste job description #1.
 This is job description #2.
 """
-st.download_button("📥 Download Template CSV", data=sample_csv, file_name="job_description_template.csv")
-bulk_jd_file = st.file_uploader("📤 Upload Bulk Job Descriptions CSV", type="csv")
+st.download_button("📅 Download Template CSV", data=sample_csv, file_name="job_description_template.csv")
+bulk_jd_file = st.file_uploader("📄 Upload Bulk Job Descriptions CSV", type="csv")
 
 # Helper functions
 def extract_text_from_pdf(file):
@@ -112,8 +112,19 @@ if st.button("✨ Generate AI Career Materials"):
         st.stop()
 
     for jd in job_descriptions:
-        bullet_prompt = "five" if expand_bullets else "two"
-        prompt = f"""
+        if refresh_section:
+            prompt = f"""
+You are an expert resume optimizer. Based only on the resume and job description below, generate five strong tailored resume bullet points.
+
+Resume:
+{resume_text}
+
+Job Description:
+{jd}
+"""
+        else:
+            bullet_prompt = "five" if expand_bullets else "two"
+            prompt = f"""
 You are an expert career coach AI. Using the resume below and the job description provided, return:
 1. {bullet_prompt.capitalize()} tailored resume bullet points.
 2. A personalized cover letter (3 short paragraphs max).
@@ -125,6 +136,7 @@ Resume:
 Job Description:
 {jd}
 """
+
         with st.spinner("Generating for a job..."):
             response = client.chat.completions.create(
                 model=model_choice,
@@ -137,10 +149,12 @@ Job Description:
             st.markdown("---")
             st.subheader("📌 Resume Bullets")
             st.markdown(output.split("\n\n")[0])
-            st.subheader("📄 Cover Letter")
-            st.markdown(output.split("\n\n")[1])
-            st.subheader("💬 Outreach Message")
-            st.markdown(output.split("\n\n")[2])
+
+            if not refresh_section:
+                st.subheader("📄 Cover Letter")
+                st.markdown(output.split("\n\n")[1])
+                st.subheader("💬 Outreach Message")
+                st.markdown(output.split("\n\n")[2])
 
             # Save to doc
             doc_out = Document()
@@ -187,6 +201,6 @@ if st.checkbox("📁 Show Application Log"):
         st.dataframe(df, use_container_width=True)
 
         csv_data = df.to_csv(index=False).encode("utf-8")
-        st.download_button("📥 Download Log as CSV", data=csv_data, file_name="career_applications_log.csv", mime="text/csv")
+        st.download_button("📅 Download Log as CSV", data=csv_data, file_name="career_applications_log.csv", mime="text/csv")
     except FileNotFoundError:
         st.warning("No application log found yet. Generate your first application to start logging!")
