@@ -42,21 +42,6 @@ st.markdown(
 )
 
 
-st.markdown(
-    f"""
-    <style>
-    .stApp {{
-        background-image: url("data:image/jpg;base64,{encoded_string}");
-        background-size: cover;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        background-position: center top;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 # 🎨 Branded Welcome
 if not st.session_state.started:
     st.title("🧠 Career Coach AI")
