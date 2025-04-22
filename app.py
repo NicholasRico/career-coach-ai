@@ -34,7 +34,7 @@ if "started" not in st.session_state:
 
 if not st.session_state.started:
     st.title("🧠 Career Coach AI")
-    st.image(".streamlit/assets/career-coach-hero-ng.png", use_column_width=True)
+    st.image("https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-hero-ng.jpg", use_container_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
 
