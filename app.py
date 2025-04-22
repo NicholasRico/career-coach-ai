@@ -25,9 +25,22 @@ if "started" not in st.session_state:
 
 # Select appropriate background image
 background_image = "hero" if not st.session_state.started else "content"
-image_path = f".streamlit/assets/career-coach-{background_image}-ng.jpg"
-with open(image_path, "rb") as img_file:
-    encoded_string = base64.b64encode(img_file.read()).decode()
+background_image_url = f"https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-{background_image}-ng.jpg"
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-image: url("{background_image_url}");
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-position: center top;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 
 st.markdown(
     f"""
