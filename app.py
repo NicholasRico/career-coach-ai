@@ -215,3 +215,4 @@ if st.checkbox("📁 Show Application Log"):
         st.download_button("Download Log as CSV", data=csv_data, file_name="career_applications_log.csv", mime="text/csv")
     except FileNotFoundError:
         st.warning("No application log found yet. Generate your first application to start logging!")
+
