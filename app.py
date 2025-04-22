@@ -43,17 +43,17 @@ st.markdown(
 
 # 🎨 Branded Welcome
 if not st.session_state.started:
-    st.title("🧠 Career Coach AI")
+    st.title("Career Coach AI")
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
 
-    if st.button("🚀 Get Started"):
+    if st.button("Get Started"):
         st.session_state.started = True
 
     st.stop()
 
 # 👤 Track who is using it
-user_id = st.text_input("👤 Enter your name or email to track your applications")
+user_id = st.text_input("👤 Enter your name or email to track your applications").strip().lower()
 if not user_id:
     st.warning("Please enter your name or email to continue.")
     st.stop()
@@ -61,16 +61,21 @@ if not user_id:
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 st.markdown("---")
-st.markdown("## 📄 Job Application Tailoring")
+st.markdown("## Job Application Tailoring")
 
 # Inputs
 with st.container():
     resume_file = st.file_uploader("📌 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
     job_description = st.text_area("📝 Paste job description here", height=250)
     model_choice = st.selectbox("🤖 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
-    log_this = st.checkbox("🗓️ Log this application", value=True)
-    expand_bullets = st.checkbox("➕ Generate more bullet options")
-    refresh_section = st.checkbox("🌀 Refresh only resume bullets")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        log_this = st.checkbox("🗓️ Log this application", value=True)
+    with col2:
+        expand_bullets = st.checkbox("➕ Generate more bullet options")
+    with col3:
+        refresh_section = st.checkbox("🔀 Refresh only resume bullets")
 
 # --- Bulk JD ---
 st.markdown("---")
@@ -190,12 +195,12 @@ if st.checkbox("📁 Show Application Log"):
         df["Timestamp"] = pd.to_datetime(df["Timestamp"])
 
         if not is_admin:
-            df = df[df["User"] == user_id]
+            df = df[df["User"].str.lower() == user_id]
         else:
             st.success("🔓 Admin access enabled — viewing all user logs.")
-            filter_user = st.selectbox("Filter by user", options=["All"] + sorted(df["User"].unique().tolist()))
+            filter_user = st.selectbox("Filter by user", options=["All"] + sorted(df["User"].str.lower().unique().tolist()))
             if filter_user != "All":
-                df = df[df["User"] == filter_user]
+                df = df[df["User"].str.lower() == filter_user]
 
         df = df.sort_values("Timestamp", ascending=False)
         st.dataframe(df, use_container_width=True)
