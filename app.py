@@ -1,4 +1,3 @@
-
 # app.py
 import streamlit as st
 from openai import OpenAI
@@ -8,7 +7,7 @@ import csv
 from datetime import datetime
 import pandas as pd
 import io
-import re
+import os
 
 # 👉 First Streamlit command
 st.set_page_config(page_title="Career Coach AI", page_icon="🧠")
@@ -38,10 +37,10 @@ if password != st.secrets["APP_PASSWORD"]:
     st.warning("This app is password protected. Enter the correct password to continue.")
     st.stop()
 
-# 🎨 Branded Welcome (landing)
+# 🎨 Landing Page
 if not st.session_state.started:
     st.title("Career Coach AI")
-    st.image(bg_url, use_container_width=True)
+    st.image(bg_url, use_column_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
     if st.button("Get Started"):
@@ -109,7 +108,6 @@ if st.button("Generate AI Career Materials"):
         st.error("Please upload a resume.")
         st.stop()
     text = extract_pdf(resume_file) if resume_file.name.endswith('.pdf') else extract_docx(resume_file)
-    # collect job descriptions
     if bulk_file:
         dfj = pd.read_csv(bulk_file)
         jobs = dfj['Job Description'].dropna().tolist()
@@ -142,13 +140,12 @@ Job Description:
     )
     out = response.choices[0].message.content.strip()
 
-    # split by numbered markers
-    parts = re.split(r"\d\.\s*", out)[1:]
-    bullets = parts[0].strip() if len(parts) > 0 else ''
-    cover = parts[1].strip() if len(parts) > 1 else ''
-    outreach = parts[2].strip() if len(parts) > 2 else ''
+    # fallback split by double newlines
+    parts = [p.strip() for p in out.split('\n\n') if p.strip()]
+    bullets = parts[0] if len(parts) > 0 else ''
+    cover = parts[1] if len(parts) > 1 else ''
+    outreach = parts[2] if len(parts) > 2 else ''
 
-    # store in session state
     st.session_state['bullets'] = bullets
     if not refresh_bullets:
         st.session_state['cover'] = cover
