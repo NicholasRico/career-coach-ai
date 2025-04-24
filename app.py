@@ -1,4 +1,3 @@
-
 # app.py
 import streamlit as st
 from openai import OpenAI
@@ -142,17 +141,23 @@ Job Description:
     )
     out = response.choices[0].message.content.strip()
 
-    # split by numbered markers
-    parts = re.split(r"\d\.\s*", out)[1:]
-    bullets = parts[0].strip() if len(parts) > 0 else ''
-    cover = parts[1].strip() if len(parts) > 1 else ''
-    outreach = parts[2].strip() if len(parts) > 2 else ''
+    # parse sections via numbered regex
+    m = re.search(r"1\.\s*(.*?)\s*2\.\s*(.*?)\s*3\.\s*(.*)", out, re.DOTALL)
+    if m:
+        bullets = m.group(1).strip()
+        cover    = m.group(2).strip()
+        outreach = m.group(3).strip()
+    else:
+        parts = re.split(r"\n\n+", out)
+        bullets = parts[0].strip() if len(parts)>0 else ''
+        cover    = parts[1].strip() if len(parts)>1 else ''
+        outreach = parts[2].strip() if len(parts)>2 else ''
 
     # store in session state
     st.session_state['bullets'] = bullets
     if not refresh_bullets:
-        st.session_state['cover'] = cover
-        st.session_state['outreach'] = outreach
+        st.session_state['cover']   = cover
+        st.session_state['outreach']= outreach
     st.success("✅ Generated Successfully!")
 
 # --- Display & Download ---
@@ -196,4 +201,3 @@ if st.checkbox("Show Application Log"):
         st.download_button("Download Log as CSV", df.to_csv(index=False).encode('utf-8'), file_name="application_log.csv")
     except FileNotFoundError:
         st.warning("No application log found yet.")
-
