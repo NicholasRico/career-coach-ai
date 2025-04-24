@@ -177,7 +177,7 @@ Job Description:
                 st.markdown(cover_letter)
                 regenerate_cl = st.button("Regenerate Cover Letter")
                 if regenerate_cl:
-                    cl_prompt = f"Rewrite this cover letter to align with the following instruction: {custom_feedback}. Resume: {resume_text} Job Description: {job_description}"
+                    cl_prompt = f"Rewrite this cover letter to align with the following instruction: {custom_feedback}. Resume: {resume_text} Job Description: {jd}"
                     with st.spinner("Regenerating cover letter..."):
                         cl_resp = client.chat.completions.create(
                             model=model_choice,
@@ -211,14 +211,14 @@ Job Description:
 
             cl_doc = Document()
             cl_doc.add_heading("Cover Letter", 0)
-            cl_doc.add_paragraph(cover_letter)
+            cl_doc.add_paragraph(st.session_state.cover_letter)
             cl_buffer = io.BytesIO()
             cl_doc.save(cl_buffer)
             st.download_button("Download Cover Letter", cl_buffer.getvalue(), file_name="Cover_Letter.docx")
 
             out_doc = Document()
             out_doc.add_heading("Outreach Message", 0)
-            out_doc.add_paragraph(outreach)
+            out_doc.add_paragraph(st.session_state.outreach)
             out_buffer = io.BytesIO()
             out_doc.save(out_buffer)
             st.download_button("Download Outreach Message", out_buffer.getvalue(), file_name="Outreach_Message.docx")
