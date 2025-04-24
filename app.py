@@ -7,6 +7,7 @@ import csv
 from datetime import datetime
 import pandas as pd
 import io
+import re
 
 # 👉 First Streamlit command
 st.set_page_config(page_title="Career Coach AI", page_icon="🧠")
@@ -59,7 +60,7 @@ st.markdown("## Job Application Tailoring")
 with st.container():
     resume_file = st.file_uploader("📌 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
     job_desc = st.text_area("📜 Paste job description here", height=250)
-    model = st.selectbox("🧠 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
+    model = st.selectbox("🧠 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"] )
     c1, c2, c3 = st.columns(3)
     with c1:
         log_app = st.checkbox("Log this application", value=True)
@@ -91,7 +92,6 @@ if st.button("Generate AI Career Materials"):
     if not resume_file:
         st.error("Please upload a resume.")
         st.stop()
-    # extract resume
     text = extract_text_from_pdf(resume_file) if resume_file.name.endswith('.pdf') else extract_text_from_docx(resume_file)
     # job list
     if bulk_file:
@@ -102,17 +102,13 @@ if st.button("Generate AI Career Materials"):
     else:
         st.error("Please paste a job description or upload a CSV.")
         st.stop()
-    # store
-    st.session_state['resume_text'] = text
-    st.session_state['job_desc'] = jobs[0]
-    # generate for first
     jd0 = jobs[0]
-    # prompt sections
-    bullet_count = "five" if (more_bullets or refresh_bullets) else "two"
+    # build prompt
+    count = "five" if (more_bullets or refresh_bullets) else "two"
+    fb = f"Feedback: {feedback}\n" if feedback else ""
     prompt = f"""
-{('Feedback: '+feedback) if feedback else ''}
-You are an expert career coach AI. Using the resume below and the job description provided, return:
-1. {bullet_count.capitalize()} tailored resume bullet points.
+{fb}You are an expert career coach AI. Using the resume below and the job description provided, return:
+1. {count.capitalize()} tailored resume bullet points.
 2. A personalized cover letter (3 short paragraphs max).
 3. A short outreach message to the hiring manager.
 
@@ -128,12 +124,12 @@ Job Description:
         temperature=0.7
     )
     out = res.choices[0].message.content
-    # split into three parts
-    parts = out.split("\n\n",2)
-    bullets = parts[0].lstrip('0123456789. ').strip() if len(parts)>0 else ''
-    cover = parts[1].lstrip('0123456789. ').strip() if len(parts)>1 else ''
-    outreach = parts[2].lstrip('0123456789. ').strip() if len(parts)>2 else ''
-    # persist
+    # parse sections via regex
+    m = re.search(r"1\.\s*(.*?)2\.\s*(.*?)3\.\s*(.*)", out, re.DOTALL)
+    bullets = m.group(1).strip() if m else ''
+    cover = st.session_state.get('cover', m.group(2).strip() if m else '')
+    outreach = st.session_state.get('outreach', m.group(3).strip() if m else '')
+    # store in session
     st.session_state['bullets'] = bullets
     if not refresh_bullets:
         st.session_state['cover'] = cover
