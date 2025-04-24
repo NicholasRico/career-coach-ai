@@ -70,15 +70,19 @@ with col_main:
     with c3:
         refresh_bullets = st.checkbox("Refresh only resume bullets")
     feedback = st.text_input("Optional: feedback or tone (e.g. friendly, persuasive)")
-    st.caption("Tip: e.g. Professional, Friendly, Persuasive, Confident, Concise")
+    st.caption("Tip: Professional, Friendly, Persuasive, Confident, Concise")
 
 with col_help:
     st.markdown("**Quick Steps**")
-    st.write("1. Upload your current resume — drag & drop or browse.")
-    st.write("2. Paste the job description you want to apply to.")
-    st.write("3. Select options & hit **Generate AI Career Materials**.")
-    st.write("4. Not satisfied? Use feedback, expand bullets, or refresh.")
-    st.write("5. Download your personalized bullets, cover letter & message!")
+    steps = [
+        "Upload your current resume — drag & drop or browse.",
+        "Paste the job description you want to apply to.",
+        "Select options & hit **Generate AI Career Materials**.",
+        "Not satisfied? Use feedback, expand bullets, or refresh.",
+        "Download your personalized bullets, cover letter & message!"
+    ]
+    for i, step in enumerate(steps, 1):
+        st.write(f"{i}. {step}")
 
 # --- Bulk Job Descriptions ---
 st.markdown("---")
@@ -89,32 +93,32 @@ st.download_button("Download Template CSV", data=template, file_name="job_descri
 bulk_file = st.file_uploader("Upload Bulk Job Descriptions CSV", type="csv")
 
 # ✂️ Helpers
-def extract_text_from_pdf(f):
+def extract_pdf(f):
     d = fitz.open(stream=f.read(), filetype="pdf")
     return "".join([p.get_text() for p in d])
-def extract_text_from_docx(f):
-    doc = Document(f)
-    return "\n".join([p.text for p in doc.paragraphs])
+def extract_docx(f):
+    d = Document(f)
+    return "\n".join([p.text for p in d.paragraphs])
 
 # --- Generate Action ---
 if st.button("Generate AI Career Materials"):
     if not resume_file:
         st.error("Please upload a resume.")
         st.stop()
-    text = extract_text_from_pdf(resume_file) if resume_file.name.endswith('.pdf') else extract_text_from_docx(resume_file)
+    text = extract_pdf(resume_file) if resume_file.name.endswith('.pdf') else extract_docx(resume_file)
     if bulk_file:
         dfj = pd.read_csv(bulk_file)
         jobs = dfj['Job Description'].dropna().tolist()
     elif job_desc:
         jobs = [job_desc]
     else:
-        st.error("Please paste a job description or upload a CSV.")
+        st.error("Please paste a job description or upload CSV.")
         st.stop()
     jd0 = jobs[0]
     count = "five" if (more_bullets or refresh_bullets) else "two"
     fb = f"Feedback: {feedback}\n" if feedback else ""
     prompt = f"""
-{fb}You are an expert career coach AI. Using the resume below and the job description provided, return:
+{fb}You are an expert career coach AI. Using the resume below and the job description, return:
 1. {count.capitalize()} tailored resume bullet points.
 2. A personalized cover letter (3 short paragraphs max).
 3. A short outreach message to the hiring manager.
@@ -131,16 +135,23 @@ Job Description:
         temperature=0.7
     )
     out = res.choices[0].message.content
-    pattern = r"1\.\s*(?P<bullets>.*?)\s*2\.\s*(?P<cover>.*?)\s*3\.\s*(?P<outreach>.*)"
-    m = re.search(pattern, out, re.DOTALL)
-    if m:
-        st.session_state['bullets'] = m.group('bullets').strip()
-        if not refresh_bullets:
-            st.session_state['cover'] = m.group('cover').strip()
-            st.session_state['outreach'] = m.group('outreach').strip()
+
+    # parse by splitting on numbered prefixes
+    parts = re.split(r'\n\s*\d\.\s*', out)
+    if len(parts) >= 4:
+        bullets = parts[1].strip()
+        cover = parts[2].strip()
+        outreach = parts[3].strip()
     else:
-        st.warning("Could not parse AI response. Raw output below:")
-        st.code(out)
+        secs = out.split('\n\n')
+        bullets = secs[0].strip() if len(secs) > 0 else ''
+        cover = secs[1].strip() if len(secs) > 1 else ''
+        outreach = secs[2].strip() if len(secs) > 2 else ''
+
+    st.session_state['bullets'] = bullets
+    if not refresh_bullets:
+        st.session_state['cover'] = cover
+        st.session_state['outreach'] = outreach
     st.success("✅ Generated Successfully!")
 
 # --- Display & Download ---
@@ -148,21 +159,21 @@ if 'bullets' in st.session_state:
     st.markdown("---")
     st.subheader("📌 Resume Bullets")
     st.markdown(st.session_state['bullets'])
-    buf1 = io.BytesIO(); d1 = Document(); d1.add_heading("Resume Bullets",0); d1.add_paragraph(st.session_state['bullets']); d1.save(buf1)
+    buf1 = io.BytesIO(); d1 = Document(); d1.add_heading("Resume Bullets", 0); d1.add_paragraph(st.session_state['bullets']); d1.save(buf1)
     st.download_button("Download Resume Bullets", buf1.getvalue(), file_name="ResumeBullets.docx")
 
 if 'cover' in st.session_state:
     st.markdown("---")
     st.subheader("📜 Cover Letter")
     st.markdown(st.session_state['cover'])
-    buf2 = io.BytesIO(); d2 = Document(); d2.add_heading("Cover Letter",0); d2.add_paragraph(st.session_state['cover']); d2.save(buf2)
+    buf2 = io.BytesIO(); d2 = Document(); d2.add_heading("Cover Letter", 0); d2.add_paragraph(st.session_state['cover']); d2.save(buf2)
     st.download_button("Download Cover Letter", buf2.getvalue(), file_name="CoverLetter.docx")
 
 if 'outreach' in st.session_state:
     st.markdown("---")
     st.subheader("💬 Outreach Message")
     st.markdown(st.session_state['outreach'])
-    buf3 = io.BytesIO(); d3 = Document(); d3.add_heading("Outreach Message",0); d3.add_paragraph(st.session_state['outreach']); d3.save(buf3)
+    buf3 = io.BytesIO(); d3 = Document(); d3.add_heading("Outreach Message", 0); d3.add_paragraph(st.session_state['outreach']); d3.save(buf3)
     st.download_button("Download Outreach Message", buf3.getvalue(), file_name="OutreachMessage.docx")
 
 # --- Admin Log Viewer ---
@@ -179,8 +190,7 @@ if st.checkbox("Show Application Log"):
         else:
             st.success("🔓 Admin view enabled")
             sel = st.selectbox("Filter by user", ["All"] + sorted(df['User'].str.lower().unique().tolist()))
-            if sel != "All":
-                df = df[df['User'].str.lower() == sel]
+            if sel != "All": df = df[df['User'].str.lower() == sel]
         st.dataframe(df.sort_values('Time', False), use_container_width=True)
         st.download_button("Download Log as CSV", df.to_csv(index=False).encode('utf-8'), file_name="application_log.csv")
     except FileNotFoundError:
