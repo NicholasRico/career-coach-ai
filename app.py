@@ -15,7 +15,6 @@ st.set_page_config(page_title="Career Coach AI", page_icon="🧠")
 # 🎨 Background CSS (hero / content)
 if "started" not in st.session_state:
     st.session_state.started = False
-
 bg = "hero" if not st.session_state.started else "content"
 bg_url = f"https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-{bg}-ng.jpg"
 st.markdown(f"""
@@ -39,6 +38,7 @@ if password != st.secrets["APP_PASSWORD"]:
 # 🎨 Branded Welcome (landing)
 if not st.session_state.started:
     st.title("Career Coach AI")
+    st.image(bg_url, use_container_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
     if st.button("Get Started"):
@@ -102,7 +102,6 @@ if st.button("Generate AI Career Materials"):
         st.error("Please upload a resume.")
         st.stop()
     text = extract_text_from_pdf(resume_file) if resume_file.name.endswith('.pdf') else extract_text_from_docx(resume_file)
-    # job list
     if bulk_file:
         dfj = pd.read_csv(bulk_file)
         jobs = dfj['Job Description'].dropna().tolist()
@@ -112,7 +111,6 @@ if st.button("Generate AI Career Materials"):
         st.error("Please paste a job description or upload a CSV.")
         st.stop()
     jd0 = jobs[0]
-    # build prompt
     count = "five" if (more_bullets or refresh_bullets) else "two"
     fb = f"Feedback: {feedback}\n" if feedback else ""
     prompt = f"""
@@ -133,14 +131,16 @@ Job Description:
         temperature=0.7
     )
     out = res.choices[0].message.content
-    m = re.search(r"1\.\s*(.*?)2\.]\s*(.*?)3\.]\s*(.*)", out, re.DOTALL)
-    bullets = m.group(1).strip() if m else ''
-    cover = st.session_state.get('cover', m.group(2).strip() if m else '')
-    outreach = st.session_state.get('outreach', m.group(3).strip() if m else '')
-    st.session_state['bullets'] = bullets
-    if not refresh_bullets:
-        st.session_state['cover'] = cover
-        st.session_state['outreach'] = outreach
+    pattern = r"1\.\s*(?P<bullets>.*?)\s*2\.\s*(?P<cover>.*?)\s*3\.\s*(?P<outreach>.*)"
+    m = re.search(pattern, out, re.DOTALL)
+    if m:
+        st.session_state['bullets'] = m.group('bullets').strip()
+        if not refresh_bullets:
+            st.session_state['cover'] = m.group('cover').strip()
+            st.session_state['outreach'] = m.group('outreach').strip()
+    else:
+        st.warning("Could not parse AI response. Raw output below:")
+        st.code(out)
     st.success("✅ Generated Successfully!")
 
 # --- Display & Download ---
@@ -169,18 +169,19 @@ if 'outreach' in st.session_state:
 st.markdown("---")
 st.subheader("📊 Application Tracker & Log")
 admin = st.text_input("🔑 Admin key (leave blank if not admin)", type="password")
-is_admin = admin==st.secrets["ADMIN_KEY"]
+is_admin = admin == st.secrets['ADMIN_KEY']
 if st.checkbox("Show Application Log"):
     try:
         df = pd.read_csv("application_log.csv", names=["Time","User","Job","Model","Preview"])
-        df['Time']=pd.to_datetime(df['Time'])
+        df['Time'] = pd.to_datetime(df['Time'])
         if not is_admin:
-            df=df[df['User'].str.lower()==user_id]
+            df = df[df['User'].str.lower() == user_id]
         else:
             st.success("🔓 Admin view enabled")
-            sel = st.selectbox("Filter by user", ["All"]+sorted(df['User'].str.lower().unique().tolist()))
-            if sel!="All": df=df[df['User'].str.lower()==sel]
-        st.dataframe(df.sort_values('Time',False), use_container_width=True)
+            sel = st.selectbox("Filter by user", ["All"] + sorted(df['User'].str.lower().unique().tolist()))
+            if sel != "All":
+                df = df[df['User'].str.lower() == sel]
+        st.dataframe(df.sort_values('Time', False), use_container_width=True)
         st.download_button("Download Log as CSV", df.to_csv(index=False).encode('utf-8'), file_name="application_log.csv")
     except FileNotFoundError:
         st.warning("No application log found yet.")
