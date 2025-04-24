@@ -109,6 +109,7 @@ if st.button("Generate AI Career Materials"):
         st.error("Please upload a resume.")
         st.stop()
     text = extract_pdf(resume_file) if resume_file.name.endswith('.pdf') else extract_docx(resume_file)
+    # build job list
     if bulk_file:
         dfj = pd.read_csv(bulk_file)
         jobs = dfj['Job Description'].dropna().tolist()
@@ -118,6 +119,8 @@ if st.button("Generate AI Career Materials"):
         st.error("Please paste a job description or upload a CSV.")
         st.stop()
     jd0 = jobs[0]
+
+    # prepare prompt
     count = "five" if (more_bullets or refresh_bullets) else "two"
     fb = f"Feedback: {feedback}\n" if feedback else ""
     prompt = f"""
@@ -132,29 +135,27 @@ Resume:
 Job Description:
 {jd0}
 """
-    res = client.chat.completions.create(
+    result = client.chat.completions.create(
         model=model,
         messages=[{"role":"user","content":prompt}],
         temperature=0.7
     )
-    out = res.choices[0].message.content
+    out = result.choices[0].message.content.strip()
 
-    # robust regex parsing
-    pattern = r"1\.\s*(.*?)\s*2\.\s*(.*?)\s*3\.\s*(.*)"
-    m = re.search(pattern, out, re.DOTALL)
-    if m:
-        bullets = m.group(1).strip()
-        cover = m.group(2).strip()
-        outreach = m.group(3).strip()
+    # split by numbered markers
+    idx2 = re.search(r"\b2\.", out)
+    idx3 = re.search(r"\b3\.", out)
+    if idx2 and idx3:
+        bullets = out[:idx2.start()].replace("1.", "").strip()
+        cover = out[idx2.end():idx3.start()].strip()
+        outreach = out[idx3.end():].strip()
     else:
         parts = out.split("\n\n")
-        bullets = parts[0].strip() if len(parts)>0 else ''
-        cover = parts[1].strip() if len(parts)>1 else ''
-        outreach = parts[2].strip() if len(parts)>2 else ''
+        bullets = parts[0].strip() if len(parts) > 0 else ''
+        cover = parts[1].strip() if len(parts) > 1 else ''
+        outreach = parts[2].strip() if len(parts) > 2 else ''
 
-    # remove any unintended header text
-    cover = cover.replace("Personalized Cover Letter:", "").strip()
-
+    # store in session
     st.session_state['bullets'] = bullets
     if not refresh_bullets:
         st.session_state['cover'] = cover
@@ -166,22 +167,42 @@ if 'bullets' in st.session_state:
     st.markdown("---")
     st.subheader("📌 Resume Bullets")
     st.markdown(st.session_state['bullets'])
-    buf1 = io.BytesIO(); d1 = Document(); d1.add_heading("Resume Bullets", 0); d1.add_paragraph(st.session_state['bullets']); d1.save(buf1)
+    buf1 = io.BytesIO();
+    d1 = Document(); d1.add_heading("Resume Bullets", 0); d1.add_paragraph(st.session_state['bullets']); d1.save(buf1)
     st.download_button("Download Resume Bullets", buf1.getvalue(), file_name="ResumeBullets.docx")
 
 if 'cover' in st.session_state:
     st.markdown("---")
     st.subheader("📜 Cover Letter")
     st.markdown(st.session_state['cover'])
-    buf2 = io.BytesIO(); d2 = Document(); d2.add_heading("Cover Letter", 0); d2.add_paragraph(st.session_state['cover']); d2.save(buf2)
+    buf2 = io.BytesIO();
+    d2 = Document(); d2.add_heading("Cover Letter", 0); d2.add_paragraph(st.session_state['cover']); d2.save(buf2)
     st.download_button("Download Cover Letter", buf2.getvalue(), file_name="CoverLetter.docx")
 
 if 'outreach' in st.session_state:
     st.markdown("---")
     st.subheader("💬 Outreach Message")
     st.markdown(st.session_state['outreach'])
-    buf3 = io.BytesIO(); d3 = Document(); d3.add_heading("Outreach Message", 0); d3.add_paragraph(st.session_state['outreach']); d3.save(buf3)
+    buf3 = io.BytesIO();
+    d3 = Document(); d3.add_heading("Outreach Message", 0); d3.add_paragraph(st.session_state['outreach']); d3.save(buf3)
     st.download_button("Download Outreach Message", buf3.getvalue(), file_name="OutreachMessage.docx")
 
 # --- Admin Log Viewer ---
 st.markdown("---")
+st.subheader("📊 Application Tracker & Log")
+admin = st.text_input("🔑 Admin key (leave blank if not admin)", type="password")
+is_admin = admin == st.secrets['ADMIN_KEY']
+if st.checkbox("Show Application Log"):
+    try:
+        df = pd.read_csv("application_log.csv", names=["Time","User","Job","Model","Preview"])
+        df['Time'] = pd.to_datetime(df['Time'])
+        if not is_admin:
+            df = df[df['User'].str.lower() == user_id]
+        else:
+            st.success("🔓 Admin view enabled")
+            sel = st.selectbox("Filter by user", ["All"] + sorted(df['User'].str.lower().unique().tolist()))
+            if sel != "All": df = df[df['User'].str.lower() == sel]
+        st.dataframe(df.sort_values('Time', False), use_container_width=True)
+        st.download_button("Download Log as CSV", df.to_csv(index=False).encode('utf-8'), file_name="application_log.csv")
+    except FileNotFoundError:
+        st.warning("No application log found yet.")
