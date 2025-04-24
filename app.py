@@ -41,7 +41,7 @@ if password != st.secrets["APP_PASSWORD"]:
 # 🎨 Branded Welcome (landing)
 if not st.session_state.started:
     st.title("Career Coach AI")
-    st.image(bg_url, use_column_width=True)
+    st.image(bg_url, use_container_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
     if st.button("Get Started"):
@@ -139,14 +139,14 @@ Job Description:
     )
     out = res.choices[0].message.content
 
-    # robust regex parsing
-    match = re.search(r"1\.\s*(.*?)2\.\s*(.*?)3\.\s*(.*)", out, re.DOTALL)
-    if match:
-        bullets = match.group(1).strip()
-        cover = match.group(2).strip()
-        outreach = match.group(3).strip()
+    # robust regex parsing with optional label skip
+    pattern = r"1\.\s*(.*?)\s*2\.\s*(?:Personalized Cover Letter:)?\s*(.*?)\s*3\.\s*(.*)"
+    m = re.search(pattern, out, re.DOTALL)
+    if m:
+        bullets = m.group(1).strip()
+        cover = m.group(2).strip()
+        outreach = m.group(3).strip()
     else:
-        # fallback splitting on double newlines
         parts = out.split("\n\n")
         bullets = parts[0].strip() if len(parts)>0 else ''
         cover = parts[1].strip() if len(parts)>1 else ''
