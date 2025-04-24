@@ -17,7 +17,8 @@ if "started" not in st.session_state:
     st.session_state.started = False
 bg = "hero" if not st.session_state.started else "content"
 bg_url = f"https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-{bg}-ng.jpg"
-st.markdown(f"""
+st.markdown(
+    f"""
     <style>
     .stApp {{
         background-image: url('{bg_url}');
@@ -27,7 +28,9 @@ st.markdown(f"""
         background-position: center top;
     }}
     </style>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
 # 🔐 Password protection
 password = st.text_input("🔐 Enter access password", type="password")
@@ -38,7 +41,7 @@ if password != st.secrets["APP_PASSWORD"]:
 # 🎨 Branded Welcome (landing)
 if not st.session_state.started:
     st.title("Career Coach AI")
-    st.image(bg_url, use_container_width=True)
+    st.image(bg_url, use_column_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
     if st.button("Get Started"):
@@ -112,13 +115,13 @@ if st.button("Generate AI Career Materials"):
     elif job_desc:
         jobs = [job_desc]
     else:
-        st.error("Please paste a job description or upload CSV.")
+        st.error("Please paste a job description or upload a CSV.")
         st.stop()
     jd0 = jobs[0]
     count = "five" if (more_bullets or refresh_bullets) else "two"
     fb = f"Feedback: {feedback}\n" if feedback else ""
     prompt = f"""
-{fb}You are an expert career coach AI. Using the resume below and the job description, return:
+{fb}You are an expert career coach AI. Using the resume below and the job description provided, return:
 1. {count.capitalize()} tailored resume bullet points.
 2. A personalized cover letter (3 short paragraphs max).
 3. A short outreach message to the hiring manager.
@@ -136,18 +139,20 @@ Job Description:
     )
     out = res.choices[0].message.content
 
-    # parse by splitting on numbered prefixes
-    parts = re.split(r'\n\s*\d\.\s*', out)
-    if len(parts) >= 4:
-        bullets = parts[1].strip()
-        cover = parts[2].strip()
-        outreach = parts[3].strip()
+    # robust regex parsing
+    match = re.search(r"1\.\s*(.*?)2\.\s*(.*?)3\.\s*(.*)", out, re.DOTALL)
+    if match:
+        bullets = match.group(1).strip()
+        cover = match.group(2).strip()
+        outreach = match.group(3).strip()
     else:
-        secs = out.split('\n\n')
-        bullets = secs[0].strip() if len(secs) > 0 else ''
-        cover = secs[1].strip() if len(secs) > 1 else ''
-        outreach = secs[2].strip() if len(secs) > 2 else ''
+        # fallback splitting on double newlines
+        parts = out.split("\n\n")
+        bullets = parts[0].strip() if len(parts)>0 else ''
+        cover = parts[1].strip() if len(parts)>1 else ''
+        outreach = parts[2].strip() if len(parts)>2 else ''
 
+    # store in session
     st.session_state['bullets'] = bullets
     if not refresh_bullets:
         st.session_state['cover'] = cover
