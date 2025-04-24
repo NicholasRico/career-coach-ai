@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 from openai import OpenAI
 from docx import Document
@@ -115,7 +114,6 @@ def extract_docx(f):
     doc = Document(io.BytesIO(data))
     return "\n".join(p.text for p in doc.paragraphs)
 
-
 # --- Generation logic ---
 if generate:
     # Validate
@@ -161,28 +159,58 @@ Job Description:
     # ── DEBUG CONSOLE ──
     st.code(out, language="markdown")
 
-    # Precise 1/2/3 section extraction
-    m = re.search(
-        r"(?:^|\n)1\.\s*([\s\S]*?)(?=\n2\.\s*)"
-        r"(?:[\s\S]*?)(?:^|\n)2\.\s*([\s\S]*?)(?=\n3\.\s*)"
-        r"(?:[\s\S]*?)(?:^|\n)3\.\s*([\s\S]*)",
-        out,
-        re.MULTILINE
+    # Improved section extraction based on actual headers
+    bullets_section = cover_section = outreach_section = ""
+
+    # Define the section headers as they appear in the response
+    bullets_header = r"Tailored Resume Bullet Points:"
+    cover_header = r"Personalized Cover Letter:"
+    outreach_header = r"Short Outreach Message to Hiring Manager:"
+
+    # Use regex to capture content between headers
+    pattern = (
+        rf"(?s){bullets_header}\s*(.*?)(?=\n{cover_header}|\n{outreach_header}|$)"
+        rf"(?:\n{cover_header}\s*(.*?)(?=\n{outreach_header}|$))?"
+        rf"(?:\n{outreach_header}\s*(.*))?"
     )
-    if m:
-        bullets_text  = m.group(1).strip()
-        cover_text    = m.group(2).strip()
-        outreach_text = m.group(3).strip()
+    match = re.search(pattern, out)
+    if match:
+        bullets_section = match.group(1).strip() if match.group(1) else ""
+        cover_section = match.group(2).strip() if match.group(2) else ""
+        outreach_section = match.group(3).strip() if match.group(3) else ""
     else:
-        parts = out.split("\n\n")
-        bullets_text  = parts[0] if len(parts)>0 else ""
-        cover_text    = parts[1] if len(parts)>1 else ""
-        outreach_text = parts[2] if len(parts)>2 else ""
+        # Fallback: Split by headers if regex fails
+        sections = re.split(rf"\n({bullets_header}|{cover_header}|{outreach_header})", out)
+        for i in range(len(sections)):
+            section = sections[i].strip()
+            if i > 0 and sections[i-1] == bullets_header:
+                bullets_section = section
+            elif i > 0 and sections[i-1] == cover_header:
+                cover_section = section
+            elif i > 0 and sections[i-1] == outreach_header:
+                outreach_section = section
+
+    # Clean up the sections: Remove numbering (e.g., "1.", "2.") from the content
+    def clean_section(text):
+        # Remove leading numbers like "1.", "2.", etc., at the start of lines
+        return re.sub(r"^\d+\.\s*", "", text, flags=re.MULTILINE).strip()
+
+    bullets_text = clean_section(bullets_section)
+    cover_text = clean_section(cover_section)
+    outreach_text = clean_section(outreach_section)
+
+    # Ensure sections are not empty
+    if not bullets_text:
+        bullets_text = "No resume bullet points generated. Please try again with a different job description or feedback."
+    if not cover_text:
+        cover_text = "No cover letter generated. Please try again with a different job description or feedback."
+    if not outreach_text:
+        outreach_text = "No outreach message generated. Please try again with a different job description or feedback."
 
     # Store in session
-    st.session_state["bullets"]  = bullets_text
+    st.session_state["bullets"] = bullets_text
     if not refresh_bullets:
-        st.session_state["cover"]    = cover_text
+        st.session_state["cover"] = cover_text
         st.session_state["outreach"] = outreach_text
 
     st.success("✅ Generated Successfully!")
@@ -191,9 +219,11 @@ Job Description:
 if "bullets" in st.session_state:
     st.markdown("---")
     st.subheader("📌 Resume Bullets")
+    st.markdown("**Tailored Resume Bullet Points:**")
     st.markdown(st.session_state["bullets"])
     buf1 = io.BytesIO()
-    d1   = Document(); d1.add_heading("Resume Bullets",0)
+    d1 = Document()
+    d1.add_heading("Resume Bullets", 0)
     d1.add_paragraph(st.session_state["bullets"])
     d1.save(buf1)
     st.download_button("Download Resume Bullets", buf1.getvalue(), file_name="ResumeBullets.docx")
@@ -203,7 +233,8 @@ if "cover" in st.session_state:
     st.subheader("📜 Cover Letter")
     st.markdown(st.session_state["cover"])
     buf2 = io.BytesIO()
-    d2   = Document(); d2.add_heading("Cover Letter",0)
+    d2 = Document()
+    d2.add_heading("Cover Letter", 0)
     d2.add_paragraph(st.session_state["cover"])
     d2.save(buf2)
     st.download_button("Download Cover Letter", buf2.getvalue(), file_name="CoverLetter.docx")
@@ -211,9 +242,11 @@ if "cover" in st.session_state:
 if "outreach" in st.session_state:
     st.markdown("---")
     st.subheader("💬 Outreach Message")
+    st.markdown("**Personalized Outreach Message:**")
     st.markdown(st.session_state["outreach"])
     buf3 = io.BytesIO()
-    d3   = Document(); d3.add_heading("Outreach Message",0)
+    d3 = Document()
+    d3.add_heading("Outreach Message", 0)
     d3.add_paragraph(st.session_state["outreach"])
     d3.save(buf3)
     st.download_button("Download Outreach Message", buf3.getvalue(), file_name="OutreachMessage.docx")
