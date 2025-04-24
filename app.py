@@ -54,10 +54,11 @@ if not user_id:
 # 🔌 OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# --- Main Inputs ---
+# --- Main Inputs + Instructions ---
 st.markdown("---")
 st.markdown("## Job Application Tailoring")
-with st.container():
+col_main, col_help = st.columns([3, 1])
+with col_main:
     resume_file = st.file_uploader("📌 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
     job_desc = st.text_area("📜 Paste job description here", height=250)
     model = st.selectbox("🧠 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"] )
@@ -70,6 +71,14 @@ with st.container():
         refresh_bullets = st.checkbox("Refresh only resume bullets")
     feedback = st.text_input("Optional: feedback or tone (e.g. friendly, persuasive)")
     st.caption("Tip: e.g. Professional, Friendly, Persuasive, Confident, Concise")
+
+with col_help:
+    st.markdown("**Quick Steps**")
+    st.write("1. Upload your current resume — drag & drop or browse.")
+    st.write("2. Paste the job description you want to apply to.")
+    st.write("3. Select options & hit **Generate AI Career Materials**.")
+    st.write("4. Not satisfied? Use feedback, expand bullets, or refresh.")
+    st.write("5. Download your personalized bullets, cover letter & message!")
 
 # --- Bulk Job Descriptions ---
 st.markdown("---")
@@ -124,12 +133,10 @@ Job Description:
         temperature=0.7
     )
     out = res.choices[0].message.content
-    # parse sections via regex
-    m = re.search(r"1\.\s*(.*?)2\.\s*(.*?)3\.\s*(.*)", out, re.DOTALL)
+    m = re.search(r"1\.\s*(.*?)2\.]\s*(.*?)3\.]\s*(.*)", out, re.DOTALL)
     bullets = m.group(1).strip() if m else ''
     cover = st.session_state.get('cover', m.group(2).strip() if m else '')
     outreach = st.session_state.get('outreach', m.group(3).strip() if m else '')
-    # store in session
     st.session_state['bullets'] = bullets
     if not refresh_bullets:
         st.session_state['cover'] = cover
@@ -141,24 +148,21 @@ if 'bullets' in st.session_state:
     st.markdown("---")
     st.subheader("📌 Resume Bullets")
     st.markdown(st.session_state['bullets'])
-    buf1 = io.BytesIO()
-    d1 = Document(); d1.add_heading("Resume Bullets",0); d1.add_paragraph(st.session_state['bullets']); d1.save(buf1)
+    buf1 = io.BytesIO(); d1 = Document(); d1.add_heading("Resume Bullets",0); d1.add_paragraph(st.session_state['bullets']); d1.save(buf1)
     st.download_button("Download Resume Bullets", buf1.getvalue(), file_name="ResumeBullets.docx")
 
 if 'cover' in st.session_state:
     st.markdown("---")
     st.subheader("📜 Cover Letter")
     st.markdown(st.session_state['cover'])
-    buf2 = io.BytesIO()
-    d2 = Document(); d2.add_heading("Cover Letter",0); d2.add_paragraph(st.session_state['cover']); d2.save(buf2)
+    buf2 = io.BytesIO(); d2 = Document(); d2.add_heading("Cover Letter",0); d2.add_paragraph(st.session_state['cover']); d2.save(buf2)
     st.download_button("Download Cover Letter", buf2.getvalue(), file_name="CoverLetter.docx")
 
 if 'outreach' in st.session_state:
     st.markdown("---")
     st.subheader("💬 Outreach Message")
     st.markdown(st.session_state['outreach'])
-    buf3 = io.BytesIO()
-    d3 = Document(); d3.add_heading("Outreach Message",0); d3.add_paragraph(st.session_state['outreach']); d3.save(buf3)
+    buf3 = io.BytesIO(); d3 = Document(); d3.add_heading("Outreach Message",0); d3.add_paragraph(st.session_state['outreach']); d3.save(buf3)
     st.download_button("Download Outreach Message", buf3.getvalue(), file_name="OutreachMessage.docx")
 
 # --- Admin Log Viewer ---
