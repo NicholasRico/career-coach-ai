@@ -7,32 +7,31 @@ import csv
 from datetime import datetime
 import pandas as pd
 import io
-import base64
-import os
 
-# ✅ First Streamlit command
+# --- Initial Setup ---
 st.set_page_config(page_title="Career Coach AI", page_icon="🧠")
 
-# 🔐 Password protection
+# --- Access Control ---
 password = st.text_input("🔐 Enter access password", type="password")
 if password != st.secrets["APP_PASSWORD"]:
     st.warning("This app is password protected. Enter the correct password to continue.")
     st.stop()
 
-# 🎨 Set custom background based on session state
+# --- Session State for Background ---
 if "started" not in st.session_state:
     st.session_state.started = False
 
-# Select appropriate background image
+# --- Background Styling ---
 background_image = "hero" if not st.session_state.started else "content"
-background_image_url = f"https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-{background_image}-ng.jpg"
+background_url = (
+    f"https://raw.githubusercontent.com/NicholasRico/career-coach-ai/main/.streamlit/assets/career-coach-{background_image}-ng.jpg"
+)
 st.markdown(
     f"""
     <style>
     .stApp {{
-        background-image: url(\"{background_image_url}\");
+        background-image: url('{background_url}');
         background-size: cover;
-        background-repeat: no-repeat;
         background-attachment: fixed;
         background-position: center top;
     }}
@@ -41,225 +40,173 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# 🎨 Branded Welcome
+# --- Welcome Screen ---
 if not st.session_state.started:
-    st.title("Career Coach AI")
+    st.title("🧠 Career Coach AI")
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
-
-    if st.button("Get Started"):
+    if st.button("🚀 Get Started"):
         st.session_state.started = True
-
     st.stop()
 
-# 👤 Track who is using it
+# --- User Identification ---
 user_id = st.text_input("👤 Enter your name or email to track your applications").strip().lower()
 if not user_id:
     st.warning("Please enter your name or email to continue.")
     st.stop()
 
+# --- OpenAI Client ---
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+# --- Main Form ---
 st.markdown("---")
-st.markdown("## Job Application Tailoring")
-
-# Inputs
+st.markdown("## 📄 Job Application Tailoring")
 with st.container():
     resume_file = st.file_uploader("📌 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
     job_description = st.text_area("📜 Paste job description here", height=250)
-    model_choice = st.selectbox("🧐 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
-
+    model_choice = st.selectbox("🤖 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
     col1, col2, col3 = st.columns(3)
     with col1:
-        log_this = st.checkbox("Log this application", value=True)
+        log_this = st.checkbox("📥 Log this application", value=True)
     with col2:
-        expand_bullets = st.checkbox("Generate more bullet options")
+        expand_bullets = st.checkbox("➕ Generate more bullet options")
     with col3:
-        refresh_section = st.checkbox("Refresh only resume bullets")
+        refresh_bullets = st.checkbox("🔄 Refresh only resume bullets")
+    custom_tone = st.text_input("🎨 Tone/style instructions (e.g., friendly, persuasive)")
+    st.caption("Need ideas? Professional, Friendly, Persuasive, Confident, Concise")
 
-custom_feedback = st.text_input("Optional: Enter tone/style instructions (e.g. confident, concise, persuasive)")
-st.caption("Need ideas? Try: Professional, Friendly, Persuasive, Confident, Concise")
-
-# --- Bulk JD ---
+# --- Bulk Upload ---
 st.markdown("---")
-st.markdown("## Bulk Job Descriptions")
-st.caption("You can optionally download a CSV template and upload multiple job descriptions to process.")
-
+st.markdown("## 📑 Bulk Job Descriptions")
+st.caption("Download template or upload multiple JDs to process.")
 sample_csv = """Job Description
-This is where you'd paste job description #1.
-This is job description #2.
+Sample job description 1.
+Sample job description 2.
 """
-st.download_button("Download Template CSV", data=sample_csv, file_name="job_description_template.csv")
-bulk_jd_file = st.file_uploader("Upload Bulk Job Descriptions CSV", type="csv")
+st.download_button("📥 Download Template CSV", data=sample_csv, file_name="job_desc_template.csv")
+bulk_file = st.file_uploader("📤 Upload Bulk CSV", type="csv")
 
-# Helper functions
-def extract_text_from_pdf(file):
+# --- Text Extraction Helpers ---
+def extract_pdf(file):
     doc = fitz.open(stream=file.read(), filetype="pdf")
-    return "".join([page.get_text() for page in doc])
+    return "\n".join(p.get_text() for p in doc)
 
-def extract_text_from_docx(file):
+def extract_docx(file):
     doc = Document(file)
-    return "\n".join([para.text for para in doc.paragraphs])
+    return "\n".join(p.text for p in doc.paragraphs)
 
-# Generation Trigger
-if st.button("Generate AI Career Materials"):
-    if resume_file:
-        resume_text = extract_text_from_pdf(resume_file) if resume_file.name.endswith(".pdf") else extract_text_from_docx(resume_file)
-        st.session_state.resume_text = resume_text
-    else:
-        st.error("Please upload a resume.")
+# --- Generate Button ---
+if st.button("✨ Generate AI Materials"):
+    # Validate inputs
+    if not resume_file:
+        st.error("Please upload your resume.")
+        st.stop()
+    if not job_description and not bulk_file:
+        st.error("Please paste a job description or upload bulk CSV.")
         st.stop()
 
-    job_descriptions = []
-    if bulk_jd_file:
-        df_bulk = pd.read_csv(bulk_jd_file)
-        job_descriptions = df_bulk["Job Description"].dropna().tolist()
-    elif job_description:
-        job_descriptions = [job_description]
+    # Extract resume text
+    resume_text = extract_pdf(resume_file) if resume_file.name.endswith(".pdf") else extract_docx(resume_file)
+    jd_list = []
+    if bulk_file:
+        df = pd.read_csv(bulk_file)
+        jd_list = df["Job Description"].dropna().tolist()
     else:
-        st.error("Please paste a job description or upload a CSV.")
-        st.stop()
+        jd_list = [job_description]
 
-    st.session_state.job_description = job_descriptions[0]
+    # For now, process only first JD
+    jd = jd_list[0]
 
-    for jd in job_descriptions:
-        if refresh_section:
-            prompt = f"""
-You are an expert resume optimizer. Based only on the resume and job description below, generate five strong tailored resume bullet points.
+    # Build prompt
+    bullet_count = 5 if expand_bullets else 2
+    if refresh_bullets:
+        prompt = (
+            f"Generate {bullet_count} resume bullet points based on resume and JD below."
+            + (f" Tone: {custom_tone}" if custom_tone else "")
+            + f"\nResume:\n{resume_text}\nJD:\n{jd}"
+        )
+    else:
+        prompt = (
+            f"Use resume + JD below to output:\n1. {bullet_count} resume bullet points\n"
+            + "2. Short cover letter (3 paragraphs max)\n3. Outreach message to hiring manager"
+            + (f"\nTone: {custom_tone}" if custom_tone else "")
+            + f"\nResume:\n{resume_text}\nJD:\n{jd}"
+        )
 
-Resume:
-{resume_text}
+    resp = client.chat.completions.create(
+        model=model_choice,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+    )
+    out = resp.choices[0].message.content.strip()
 
-Job Description:
-{jd}
-"""
-        else:
-            bullet_prompt = "five" if expand_bullets else "two"
-            feedback_note = f"The user added this customization instruction: {custom_feedback}" if custom_feedback else ""
-            prompt = f"""
-You are an expert career coach AI. Using the resume below and the job description provided, return:
-1. {bullet_prompt.capitalize()} tailored resume bullet points.
-2. A personalized cover letter (3 short paragraphs max).
-3. A short outreach message to the hiring manager.
+    # Parse numbered sections
+    bullet_sec, _, rest = out.partition("\n2.")
+    resume_bullets = bullet_sec.strip()
+    cover_sec, _, outreach_sec = rest.partition("\n3.")
+    cover_letter = ("2." + cover_sec).strip()
+    outreach = ("3." + outreach_sec).strip()
 
-{feedback_note}
+    # Display sections
+    st.markdown("---")
+    st.subheader("📌 Resume Bullets")
+    st.markdown(resume_bullets)
+    if not refresh_bullets:
+        st.subheader("💌 Cover Letter")
+        st.markdown(cover_letter)
+        st.subheader("💬 Outreach Message")
+        st.markdown(outreach)
 
-Resume:
-{resume_text}
+    # Download docs
+    buf1 = io.BytesIO()
+    d1 = Document()
+    d1.add_heading("Resume Bullets", 0)
+    d1.add_paragraph(resume_bullets)
+    d1.save(buf1)
+    st.download_button("Download Resume Bullets", buf1.getvalue(), file_name="Resume_Bullets.docx")
 
-Job Description:
-{jd}
-"""
+    if not refresh_bullets:
+        buf2 = io.BytesIO()
+        d2 = Document()
+        d2.add_heading("Cover Letter", 0)
+        d2.add_paragraph(cover_letter)
+        d2.save(buf2)
+        st.download_button("Download Cover Letter", buf2.getvalue(), file_name="Cover_Letter.docx")
 
-        with st.spinner("Generating for a job..."):
-            response = client.chat.completions.create(
-                model=model_choice,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7
-            )
-            output = response.choices[0].message.content
-            sections = output.split("\n\n")
-            resume_bullets = sections[0] if len(sections) > 0 else ""
-            cover_letter = sections[1] if len(sections) > 1 else ""
-            outreach = sections[2] if len(sections) > 2 else ""
+        buf3 = io.BytesIO()
+        d3 = Document()
+        d3.add_heading("Outreach Message", 0)
+        d3.add_paragraph(outreach)
+        d3.save(buf3)
+        st.download_button("Download Outreach Message", buf3.getvalue(), file_name="Outreach_Message.docx")
 
-            st.session_state.cover_letter = cover_letter
-            st.session_state.outreach = outreach
-
-            st.success("✅ Generated Successfully!")
-
-            st.markdown("---")
-            st.subheader("📌 Resume Bullets")
-            st.markdown(resume_bullets)
-
-            if not refresh_section:
-                st.subheader("Cover Letter")
-                st.markdown(cover_letter)
-                regenerate_cl = st.text_input("Feedback to improve Cover Letter", key="cl_feedback")
-                if st.button("Regenerate Cover Letter"):
-                    cl_prompt = f"Rewrite this cover letter to align with the following instruction: {regenerate_cl or custom_feedback}. Resume: {resume_text} Job Description: {jd}"
-                    with st.spinner("Regenerating cover letter..."):
-                        cl_resp = client.chat.completions.create(
-                            model=model_choice,
-                            messages=[{"role": "user", "content": cl_prompt}],
-                            temperature=0.7
-                        )
-                        st.session_state.cover_letter = cl_resp.choices[0].message.content
-                        st.markdown(st.session_state.cover_letter)
-
-                st.subheader("Outreach Message")
-                st.markdown(outreach)
-                regenerate_outreach = st.text_input("Feedback to improve Outreach Message", key="outreach_feedback")
-                if st.button("Regenerate Outreach Message"):
-                    msg_prompt = f"Regenerate a short recruiter outreach message based on this resume and job description. Make it reflect this feedback: {regenerate_outreach or custom_feedback}"
-                    with st.spinner("Regenerating outreach message..."):
-                        msg_resp = client.chat.completions.create(
-                            model=model_choice,
-                            messages=[{"role": "user", "content": msg_prompt}],
-                            temperature=0.7
-                        )
-                        st.session_state.outreach = msg_resp.choices[0].message.content
-                        st.markdown(st.session_state.outreach)
-
-            # Save as separate docs
-            resume_doc = Document()
-            resume_doc.add_heading("Resume Bullets", 0)
-            resume_doc.add_paragraph(resume_bullets)
-            resume_buffer = io.BytesIO()
-            resume_doc.save(resume_buffer)
-            st.download_button("Download Resume Bullets", resume_buffer.getvalue(), file_name="Updated_Resume.docx")
-
-            cl_doc = Document()
-            cl_doc.add_heading("Cover Letter", 0)
-            cl_doc.add_paragraph(st.session_state.cover_letter)
-            cl_buffer = io.BytesIO()
-            cl_doc.save(cl_buffer)
-            st.download_button("Download Cover Letter", cl_buffer.getvalue(), file_name="Cover_Letter.docx")
-
-            out_doc = Document()
-            out_doc.add_heading("Outreach Message", 0)
-            out_doc.add_paragraph(st.session_state.outreach)
-            out_buffer = io.BytesIO()
-            out_doc.save(out_buffer)
-            st.download_button("Download Outreach Message", out_buffer.getvalue(), file_name="Outreach_Message.docx")
-
-            # Logging
-            if log_this:
-                job_title = jd.splitlines()[0][:80] if jd else "Unknown Role"
-                with open("application_log.csv", mode="a", newline="") as log_file:
-                    writer = csv.writer(log_file)
-                    writer.writerow([
-                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        user_id,
-                        job_title,
-                        model_choice,
-                        output[:300].replace("\n", " ")
-                    ])
+    # Logging
+    if log_this:
+        with open("application_log.csv", "a", newline="") as lf:
+            writer = csv.writer(lf)
+            writer.writerow([
+                datetime.now().isoformat(),
+                user_id,
+                jd,
+                model_choice,
+                resume_bullets.replace("\n", " "),
+            ])
 
 # --- Admin Log Viewer ---
 st.markdown("---")
-st.subheader("📊 Application Tracker & Log")
-
-admin_key = st.text_input("🔑 Admin key (leave blank if not admin)", type="password")
-is_admin = admin_key == st.secrets["ADMIN_KEY"]
-
-if st.checkbox("📁 Show Application Log"):
-    try:
-        df = pd.read_csv("application_log.csv", names=["Timestamp", "User", "Job Title", "Model Used", "Output Preview"])
-        df["Timestamp"] = pd.to_datetime(df["Timestamp"])
-
-        if not is_admin:
-            df = df[df["User"].str.lower() == user_id]
-        else:
-            st.success("🔓 Admin access enabled — viewing all user logs.")
-            filter_user = st.selectbox("Filter by user", options=["All"] + sorted(df["User"].str.lower().unique().tolist()))
-            if filter_user != "All":
-                df = df[df["User"].str.lower() == filter_user]
-
-        df = df.sort_values("Timestamp", ascending=False)
-        st.dataframe(df, use_container_width=True)
-
-        csv_data = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download Log as CSV", data=csv_data, file_name="career_applications_log.csv", mime="text/csv")
-    except FileNotFoundError:
-        st.warning("No application log found yet. Generate your first application to start logging!")
+st.header("📊 Application Tracker & Log")
+if st.checkbox("Show Application Log"):
+    df_log = pd.read_csv(
+        "application_log.csv",
+        names=["Timestamp", "User", "JD", "Model", "Bullets"],
+    )
+    df_log["Timestamp"] = pd.to_datetime(df_log["Timestamp"])
+    admin_input = st.text_input("🔑 Admin key (leave blank if not admin)")
+    if admin_input != st.secrets["ADMIN_KEY"]:
+        df_log = df_log[df_log.User.str.lower() == user_id]
+    else:
+        st.success("🔓 Admin access enabled — showing all logs.")
+        sel = st.selectbox("Filter by user", options=["All"] + df_log.User.str.lower().unique().tolist())
+        if sel != "All":
+            df_log = df_log[df_log.User.str.lower() == sel]
+    st.dataframe(df_log.sort_values("Timestamp", False))
