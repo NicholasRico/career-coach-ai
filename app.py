@@ -38,7 +38,6 @@ st.markdown(
 # 🎨 Branded Welcome (landing)
 if not st.session_state.started:
     st.title("Career Coach AI")
-    st.image(bg_url, use_column_width=True)
     st.markdown(
         "Tailor your resume, cover letter, and recruiter message for **any job** in seconds."
     )
