@@ -30,7 +30,7 @@ st.markdown(
     f"""
     <style>
     .stApp {{
-        background-image: url(\"{background_image_url}\");
+        background-image: url("{background_image_url}");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -159,7 +159,9 @@ Job Description:
             )
             output = response.choices[0].message.content
             sections = output.split("\n\n")
-            resume_bullets, cover_letter, outreach = sections[0], sections[1], sections[2]
+            resume_bullets = sections[0] if len(sections) > 0 else ""
+            cover_letter = sections[1] if len(sections) > 1 else ""
+            outreach = sections[2] if len(sections) > 2 else ""
 
             st.session_state.cover_letter = cover_letter
             st.session_state.outreach = outreach
