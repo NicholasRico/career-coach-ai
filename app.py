@@ -1,3 +1,4 @@
+```python
 # app.py
 import streamlit as st
 from openai import OpenAI
@@ -7,6 +8,7 @@ import csv
 from datetime import datetime
 import pandas as pd
 import io
+import re
 
 # 👉 First Streamlit command
 st.set_page_config(page_title="Career Coach AI", page_icon="🧠")
@@ -27,8 +29,7 @@ st.markdown(
         background-position: center top;
     }}
     </style>
-    """,
-    unsafe_allow_html=True
+    """, unsafe_allow_html=True
 )
 
 # 🔐 Password protection
@@ -40,7 +41,7 @@ if password != st.secrets["APP_PASSWORD"]:
 # 🎨 Branded Welcome (landing)
 if not st.session_state.started:
     st.title("Career Coach AI")
-    st.image(bg_url, use_column_width=True)
+    st.image(bg_url, use_container_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
     if st.button("Get Started"):
@@ -98,7 +99,6 @@ bulk_file = st.file_uploader("Upload Bulk Job Descriptions CSV", type="csv")
 def extract_pdf(f):
     d = fitz.open(stream=f.read(), filetype="pdf")
     return "".join([p.get_text() for p in d])
-
 def extract_docx(f):
     d = Document(f)
     return "\n".join([p.text for p in d.paragraphs])
@@ -120,19 +120,10 @@ if st.button("Generate AI Career Materials"):
         st.stop()
     jd0 = jobs[0]
 
-    # build strict-format prompt
     count = "five" if (more_bullets or refresh_bullets) else "two"
     fb = f"Feedback: {feedback}\n" if feedback else ""
-    strict_instruct = (
-        "Please format your reply exactly as follows, with no extra text:\n"
-        "1. bullet points separated by new lines\n\n"
-        "2. cover letter (3 paragraphs)\n\n"
-        "3. outreach message"
-    )
     prompt = f"""
-{strict_instruct}
-{fb}
-You are an expert career coach AI. Using the resume below and the job description provided, return:
+{fb}You are an expert career coach AI. Using the resume below and the job description provided, return:
 1. {count.capitalize()} tailored resume bullet points.
 2. A personalized cover letter (3 short paragraphs max).
 3. A short outreach message to the hiring manager.
@@ -143,6 +134,7 @@ Resume:
 Job Description:
 {jd0}
 """
+
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
@@ -150,14 +142,11 @@ Job Description:
     )
     out = response.choices[0].message.content.strip()
 
-    # insert raw output for debugging
-    st.code(out, language='text')
-
-    # split on double newlines for sections
-    sections = out.split("\n\n")
-    bullets = sections[0].strip() if len(sections) > 0 else ""
-    cover = sections[1].strip() if len(sections) > 1 else ""
-    outreach = sections[2].strip() if len(sections) > 2 else ""
+    # split by numbered markers
+    parts = re.split(r"\d\.\s*", out)[1:]
+    bullets = parts[0].strip() if len(parts) > 0 else ''
+    cover = parts[1].strip() if len(parts) > 1 else ''
+    outreach = parts[2].strip() if len(parts) > 2 else ''
 
     # store in session state
     st.session_state['bullets'] = bullets
