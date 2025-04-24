@@ -76,7 +76,7 @@ with col_main:
     feedback = st.text_input("Optional: feedback or tone (e.g. friendly, persuasive)")
     st.caption("Tip: Professional, Friendly, Persuasive, Confident, Concise")
 
-    # ⚡️ Trigger generation from here
+    # ⚡️ Use exactly one button for generation
     generate = st.button("✨ Generate AI Career Materials")
 
 with col_help:
@@ -154,24 +154,23 @@ Job Description:
     )
     out = response.choices[0].message.content.strip()
 
-    # Improved section extraction with fallback
+    # Improved section extraction with robust regex
     bullets_section = cover_section = outreach_section = ""
 
-    # Try regex first
-    m = re.search(
-        r"(?:^|\n)1\.\s*([\s\S]*?)(?=\n2\.|\n3\.|$)"  # Bullets up to 2. or 3. or end
-        r"(?:(?:.*?)(?:^|\n)2\.\s*([\s\S]*?)(?=\n3\.|$))?"  # Cover up to 3. or end (optional)
-        r"(?:(?:.*?)(?:^|\n)3\.\s*([\s\S]*))?",  # Outreach to end (optional)
-        out,
-        flags=re.MULTILINE,
+    # Use a regex to capture the blocks for 1., 2., and 3. sections
+    pattern = (
+        r"(?s)1\.\s*(.*?)(?=\n2\.|\n3\.|$)"  # Capture everything after "1." until "2." or "3." or end
+        r"(?:\n2\.\s*(.*?)(?=\n3\.|$))?"     # Optionally capture after "2." until "3." or end
+        r"(?:\n3\.\s*(.*))?"                 # Optionally capture after "3." until end
     )
-    if m:
-        bullets_section = m.group(1).strip() if m.group(1) else ""
-        cover_section = m.group(2).strip() if m.group(2) else ""
-        outreach_section = m.group(3).strip() if m.group(3) else ""
+    match = re.match(pattern, out)
+    if match:
+        bullets_section = match.group(1).strip() if match.group(1) else ""
+        cover_section = match.group(2).strip() if match.group(2) else ""
+        outreach_section = match.group(3).strip() if match.group(3) else ""
     else:
-        # Fallback: Split by section headers
-        sections = re.split(r"\n(?=\d+\.\s)", out)
+        # Fallback: If regex fails, split by double newlines as a last resort
+        sections = out.split("\n\n")
         for section in sections:
             if section.startswith("1."):
                 bullets_section = section.replace("1.", "").strip()
