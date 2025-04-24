@@ -155,7 +155,11 @@ Job Description:
         messages=[{"role":"user","content":prompt}],
         temperature=0.7
     )
+    resp = client.chat.completions.create(…)
     out = resp.choices[0].message.content.strip()
+
+    # ── DEBUG CONSOLE ──
+    st.code(out, language="markdown")
 
     # Precise 1/2/3 section extraction
     m = re.search(
