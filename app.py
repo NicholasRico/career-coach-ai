@@ -109,8 +109,12 @@ def extract_pdf(f):
     return "".join(p.get_text() for p in doc)
 
 def extract_docx(f):
-    doc = Document(f)
+    data = f.read()
+    # reset for any future read
+    f.seek(0)
+    doc = Document(io.BytesIO(data))
     return "\n".join(p.text for p in doc.paragraphs)
+
 
 # --- Generation logic ---
 if generate:
@@ -137,7 +141,7 @@ if generate:
     prompt = f"""
 {fb}You are an expert career coach AI. Using the resume below and the job description provided, return:
 1. {count.capitalize()} tailored resume bullet points.
-2. A personalized cover letter (3 short paragraphs max).
+2. A personalized cover letter (needs to be 3 short paragraphs max).
 3. A short outreach message to the hiring manager.
 
 Resume:
