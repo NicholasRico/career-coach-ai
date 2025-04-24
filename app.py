@@ -76,6 +76,9 @@ with col_main:
         refresh_bullets = st.checkbox("Refresh only resume bullets")
     feedback = st.text_input("Optional: feedback or tone (e.g. friendly, persuasive)")
     st.caption("Tip: Professional, Friendly, Persuasive, Confident, Concise")
+      
+        # ⚡️ Trigger generation from here
+    generate = st.button("✨ Generate AI Career Materials")
 
 with col_help:
     st.markdown("**Quick Steps**")
@@ -110,7 +113,7 @@ def extract_docx(f):
     return "\n".join([p.text for p in d.paragraphs])
 
 # --- Generate Action ---
-if st.button("Generate AI Career Materials"):
+if generate("Generate AI Career Materials"):
     if not resume_file:
         st.error("Please upload a resume.")
         st.stop()
@@ -222,34 +225,29 @@ if 'outreach' in st.session_state:
     )
 
 # --- Application Tracker & Log ---
+# --- Application Tracker & Log (no admin) ---
 st.markdown("---")
 st.subheader("📊 Application Tracker & Log")
-admin = st.text_input("🔑 Admin key (leave blank if not admin)", type="password")
-is_admin = admin == st.secrets['ADMIN_KEY']
+
 if st.checkbox("Show Application Log"):
     try:
         df = pd.read_csv(
             "application_log.csv",
-            names=["Time","User","Job","Model","Preview"],
+            names=["Time", "User", "Job", "Model", "Preview"],
         )
-        df['Time'] = pd.to_datetime(df['Time'])
-        if not is_admin:
-            df = df[df['User'].str.lower()==user_id]
-        else:
-            st.success("🔓 Admin view enabled")
-            sel = st.selectbox(
-                "Filter by user",
-                ["All"] + sorted(df['User'].str.lower().unique().tolist())
-            )
-            if sel != "All": df = df[df['User'].str.lower()==sel]
-        st.dataframe(
-            df.sort_values('Time',ascending=False),
-            use_container_width=True,
-        )
+        df["Time"] = pd.to_datetime(df["Time"])
+        # always filter to the current user
+        df = df[df["User"].str.lower() == user_id]
+        df = df.sort_values("Time", ascending=False)
+
+        st.dataframe(df, use_container_width=True)
+
+        csv_data = df.to_csv(index=False).encode("utf-8")
         st.download_button(
             "Download Log as CSV",
-            df.to_csv(index=False).encode('utf-8'),
+            data=csv_data,
             file_name="application_log.csv",
+            mime="text/csv",
         )
     except FileNotFoundError:
-        st.warning("No application log found yet.")
+        st.warning("No application log found yet. Generate your first application to start logging!")
