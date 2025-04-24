@@ -41,7 +41,7 @@ if password != st.secrets["APP_PASSWORD"]:
 # 🎨 Branded Welcome (landing)
 if not st.session_state.started:
     st.title("Career Coach AI")
-    st.image(bg_url, use_container_width=True)
+    st.image(bg_url, use_column_width=True)
     st.markdown("Tailor your resume, cover letter, and recruiter message for **any job** in seconds.")
     st.markdown("Built by [Nicholas Gauthier](mailto:NickRGauthier@gmail.com)")
     if st.button("Get Started"):
@@ -139,8 +139,8 @@ Job Description:
     )
     out = res.choices[0].message.content
 
-    # robust regex parsing with optional label skip
-    pattern = r"1\.\s*(.*?)\s*2\.\s*(?:Personalized Cover Letter:)?\s*(.*?)\s*3\.\s*(.*)"
+    # robust regex parsing
+    pattern = r"1\.\s*(.*?)\s*2\.\s*(.*?)\s*3\.\s*(.*)"
     m = re.search(pattern, out, re.DOTALL)
     if m:
         bullets = m.group(1).strip()
@@ -152,7 +152,9 @@ Job Description:
         cover = parts[1].strip() if len(parts)>1 else ''
         outreach = parts[2].strip() if len(parts)>2 else ''
 
-    # store in session
+    # remove any unintended header text
+    cover = cover.replace("Personalized Cover Letter:", "").strip()
+
     st.session_state['bullets'] = bullets
     if not refresh_bullets:
         st.session_state['cover'] = cover
@@ -183,20 +185,3 @@ if 'outreach' in st.session_state:
 
 # --- Admin Log Viewer ---
 st.markdown("---")
-st.subheader("📊 Application Tracker & Log")
-admin = st.text_input("🔑 Admin key (leave blank if not admin)", type="password")
-is_admin = admin == st.secrets['ADMIN_KEY']
-if st.checkbox("Show Application Log"):
-    try:
-        df = pd.read_csv("application_log.csv", names=["Time","User","Job","Model","Preview"])
-        df['Time'] = pd.to_datetime(df['Time'])
-        if not is_admin:
-            df = df[df['User'].str.lower() == user_id]
-        else:
-            st.success("🔓 Admin view enabled")
-            sel = st.selectbox("Filter by user", ["All"] + sorted(df['User'].str.lower().unique().tolist()))
-            if sel != "All": df = df[df['User'].str.lower() == sel]
-        st.dataframe(df.sort_values('Time', False), use_container_width=True)
-        st.download_button("Download Log as CSV", df.to_csv(index=False).encode('utf-8'), file_name="application_log.csv")
-    except FileNotFoundError:
-        st.warning("No application log found yet.")
