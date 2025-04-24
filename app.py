@@ -158,18 +158,21 @@ Job Description:
                 temperature=0.7
             )
             output = response.choices[0].message.content
-            st.session_state.cover_letter = output.split("\n\n")[1]
-            st.session_state.outreach = output.split("\n\n")[2]
+            sections = output.split("\n\n")
+            resume_bullets, cover_letter, outreach = sections[0], sections[1], sections[2]
+
+            st.session_state.cover_letter = cover_letter
+            st.session_state.outreach = outreach
 
             st.success("✅ Generated Successfully!")
 
             st.markdown("---")
             st.subheader("📌 Resume Bullets")
-            st.markdown(output.split("\n\n")[0])
+            st.markdown(resume_bullets)
 
             if not refresh_section:
                 st.subheader("📜 Cover Letter")
-                st.markdown(st.session_state.cover_letter)
+                st.markdown(cover_letter)
                 regenerate_cl = st.button("Regenerate Cover Letter")
                 if regenerate_cl:
                     cl_prompt = f"Rewrite this cover letter to align with the following instruction: {custom_feedback}. Resume: {resume_text} Job Description: {job_description}"
@@ -183,7 +186,7 @@ Job Description:
                         st.markdown(st.session_state.cover_letter)
 
                 st.subheader("🖌️ Outreach Message")
-                st.markdown(st.session_state.outreach)
+                st.markdown(outreach)
                 regenerate_outreach = st.button("Regenerate Outreach Message")
                 if regenerate_outreach:
                     msg_prompt = f"Regenerate a short recruiter outreach message based on this resume and job description. Make it reflect this feedback: {custom_feedback}"
@@ -196,13 +199,27 @@ Job Description:
                         st.session_state.outreach = msg_resp.choices[0].message.content
                         st.markdown(st.session_state.outreach)
 
-            # Save to doc
-            doc_out = Document()
-            doc_out.add_heading("Career Coach AI Output", 0)
-            doc_out.add_paragraph(output)
-            doc_buffer = io.BytesIO()
-            doc_out.save(doc_buffer)
-            st.download_button("Download as Word File", doc_buffer.getvalue(), file_name="CareerCoachOutput.docx")
+            # Save as separate docs
+            resume_doc = Document()
+            resume_doc.add_heading("Resume Bullets", 0)
+            resume_doc.add_paragraph(resume_bullets)
+            resume_buffer = io.BytesIO()
+            resume_doc.save(resume_buffer)
+            st.download_button("Download Resume Bullets", resume_buffer.getvalue(), file_name="Updated_Resume.docx")
+
+            cl_doc = Document()
+            cl_doc.add_heading("Cover Letter", 0)
+            cl_doc.add_paragraph(cover_letter)
+            cl_buffer = io.BytesIO()
+            cl_doc.save(cl_buffer)
+            st.download_button("Download Cover Letter", cl_buffer.getvalue(), file_name="Cover_Letter.docx")
+
+            out_doc = Document()
+            out_doc.add_heading("Outreach Message", 0)
+            out_doc.add_paragraph(outreach)
+            out_buffer = io.BytesIO()
+            out_doc.save(out_buffer)
+            st.download_button("Download Outreach Message", out_buffer.getvalue(), file_name="Outreach_Message.docx")
 
             # Logging
             if log_this:
