@@ -38,7 +38,6 @@ st.markdown(
 # 🎨 Branded Welcome (landing)
 if not st.session_state.started:
     st.title("Career Coach AI")
-    st.image(bg_url, use_container_width=True)  # ← restored hero image
     st.markdown(
         "Tailor your resume, cover letter, and recruiter message for **any job** in seconds."
     )
@@ -78,7 +77,7 @@ with col_main:
     feedback = st.text_input("Optional: feedback or tone (e.g. friendly, persuasive)")
     st.caption("Tip: Professional, Friendly, Persuasive, Confident, Concise")
 
-    # ⚡️ Trigger generation from here (only once)
+    # ⚡️ Trigger generation from here
     generate = st.button("✨ Generate AI Career Materials")
 
 with col_help:
@@ -88,7 +87,7 @@ with col_help:
         "Paste the job description you want to apply to.",
         "Select options & hit **Generate AI Career Materials**.",
         "Not satisfied? Use feedback, expand bullets, or refresh.",
-        "Download your personalized bullets, cover letter & message!",
+        "Download your personalized bullets, cover letter & message!"
     ]
     for i, step in enumerate(steps, 1):
         st.write(f"{i}. {step}")
@@ -96,25 +95,23 @@ with col_help:
 # --- Bulk Job Descriptions ---
 st.markdown("---")
 st.markdown("## Bulk Job Descriptions")
-st.caption("Download a CSV template and optionally upload multiple job descriptions.")
+st.caption(
+    "Download a CSV template and optionally upload multiple job descriptions."
+)
 template = "Job Description\nJD #1\nJD #2\n"
 st.download_button(
     "Download Template CSV", data=template, file_name="job_description_template.csv"
 )
-bulk_file = st.file_uploader(
-    "Upload Bulk Job Descriptions CSV", type="csv"
-)
+bulk_file = st.file_uploader("Upload Bulk Job Descriptions CSV", type="csv")
 
 # ✂️ Helpers
 def extract_pdf(f):
     d = fitz.open(stream=f.read(), filetype="pdf")
     return "".join([p.get_text() for p in d])
 
-
 def extract_docx(f):
     d = Document(f)
     return "\n".join([p.text for p in d.paragraphs])
-
 
 # --- Generate Action ---
 if generate:
@@ -123,14 +120,12 @@ if generate:
         st.stop()
     text = (
         extract_pdf(resume_file)
-        if resume_file.name.endswith(".pdf")
+        if resume_file.name.endswith('.pdf')
         else extract_docx(resume_file)
     )
-
-    # collect job descriptions
     if bulk_file:
         dfj = pd.read_csv(bulk_file)
-        jobs = dfj["Job Description"].dropna().tolist()
+        jobs = dfj['Job Description'].dropna().tolist()
     elif job_desc:
         jobs = [job_desc]
     else:
@@ -142,7 +137,7 @@ if generate:
     fb = f"Feedback: {feedback}\n" if feedback else ""
     prompt = f"""
 {fb}You are an expert career coach AI. Using the resume below and the job description provided, return:
-1. {count.capitalize()} tailored resume bullet points.
+1. {count.capitalize()} tailored resume bullet points — label each with letters “a.”, “b.”, “c.”, etc.
 2. A personalized cover letter (3 short paragraphs max).
 3. A short outreach message to the hiring manager.
 
@@ -162,9 +157,9 @@ Job Description:
 
     # precise section extraction
     m = re.search(
-        r"(?:^|\n)1\.\s*([\s\S]*?)(?=\n2\.)"  # bullets up to 2.
+        r"(?:^|\n)1\.\s*([\s\S]*?)(?=\n2\.)"    # bullets up to 2.
         r"(?:.*?)(?:^|\n)2\.\s*([\s\S]*?)(?=\n3\.)"  # cover up to 3.
-        r"(?:.*?)(?:^|\n)3\.\s*([\s\S]*)",  # outreach to end
+        r"(?:.*?)(?:^|\n)3\.\s*([\s\S]*)",        # outreach to end
         out,
         flags=re.MULTILINE,
     )
@@ -174,57 +169,63 @@ Job Description:
         outreach_section = m.group(3).strip()
     else:
         parts = out.split("\n\n")
-        bullets_section = parts[0] if len(parts) > 0 else ""
-        cover_section = parts[1] if len(parts) > 1 else ""
-        outreach_section = parts[2] if len(parts) > 2 else ""
+        bullets_section = parts[0] if len(parts) > 0 else ''
+        cover_section = parts[1] if len(parts) > 1 else ''
+        outreach_section = parts[2] if len(parts) > 2 else ''
 
-    st.session_state["bullets"] = bullets_section
+    st.session_state['bullets'] = bullets_section
     if not refresh_bullets:
-        st.session_state["cover"] = cover_section
-        st.session_state["outreach"] = outreach_section
+        st.session_state['cover'] = cover_section
+        st.session_state['outreach'] = outreach_section
     st.success("✅ Generated Successfully!")
 
 # --- Display & Download ---
-if "bullets" in st.session_state:
+if 'bullets' in st.session_state:
     st.markdown("---")
     st.subheader("📌 Resume Bullets")
-    st.markdown(st.session_state["bullets"])
+    st.markdown(st.session_state['bullets'])
     buf1 = io.BytesIO()
     d1 = Document()
     d1.add_heading("Resume Bullets", 0)
-    d1.add_paragraph(st.session_state["bullets"])
+    d1.add_paragraph(st.session_state['bullets'])
     d1.save(buf1)
     st.download_button(
-        "Download Resume Bullets", buf1.getvalue(), file_name="ResumeBullets.docx"
+        "Download Resume Bullets",
+        buf1.getvalue(),
+        file_name="ResumeBullets.docx",
     )
 
-if "cover" in st.session_state:
+if 'cover' in st.session_state:
     st.markdown("---")
     st.subheader("📜 Cover Letter")
-    st.markdown(st.session_state["cover"])
+    st.markdown(st.session_state['cover'])
     buf2 = io.BytesIO()
     d2 = Document()
     d2.add_heading("Cover Letter", 0)
-    d2.add_paragraph(st.session_state["cover"])
+    d2.add_paragraph(st.session_state['cover'])
     d2.save(buf2)
     st.download_button(
-        "Download Cover Letter", buf2.getvalue(), file_name="CoverLetter.docx"
+        "Download Cover Letter",
+        buf2.getvalue(),
+        file_name="CoverLetter.docx",
     )
 
-if "outreach" in st.session_state:
+if 'outreach' in st.session_state:
     st.markdown("---")
     st.subheader("💬 Outreach Message")
-    st.markdown(st.session_state["outreach"])
+    st.markdown(st.session_state['outreach'])
     buf3 = io.BytesIO()
     d3 = Document()
     d3.add_heading("Outreach Message", 0)
-    d3.add_paragraph(st.session_state["outreach"])
+    d3.add_paragraph(st.session_state['outreach'])
     d3.save(buf3)
     st.download_button(
-        "Download Outreach Message", buf3.getvalue(), file_name="OutreachMessage.docx"
+        "Download Outreach Message",
+        buf3.getvalue(),
+        file_name="OutreachMessage.docx",
     )
 
-# --- Application Tracker & Log (no admin) ---
+# --- Application Tracker & Log ---
 st.markdown("---")
 st.subheader("📊 Application Tracker & Log")
 if st.checkbox("Show Application Log"):
