@@ -113,7 +113,7 @@ def extract_docx(f):
     return "\n".join([p.text for p in d.paragraphs])
 
 # --- Generate Action ---
-if generate("Generate AI Career Materials"):
+if st.button("✨ Generate AI Career Materials"):
     if not resume_file:
         st.error("Please upload a resume.")
         st.stop()
