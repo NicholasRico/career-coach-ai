@@ -30,7 +30,7 @@ st.markdown(
     f"""
     <style>
     .stApp {{
-        background-image: url("{background_image_url}");
+        background-image: url(\"{background_image_url}\");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -67,7 +67,7 @@ st.markdown("## Job Application Tailoring")
 with st.container():
     resume_file = st.file_uploader("📌 Upload your resume (.pdf or .docx)", type=["pdf", "docx"])
     job_description = st.text_area("📜 Paste job description here", height=250)
-    model_choice = st.selectbox("🧠 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
+    model_choice = st.selectbox("🧐 Choose GPT model", ["gpt-3.5-turbo", "gpt-4"])
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -173,11 +173,11 @@ Job Description:
             st.markdown(resume_bullets)
 
             if not refresh_section:
-                st.subheader("📜 Cover Letter")
+                st.subheader("Cover Letter")
                 st.markdown(cover_letter)
-                regenerate_cl = st.button("Regenerate Cover Letter")
-                if regenerate_cl:
-                    cl_prompt = f"Rewrite this cover letter to align with the following instruction: {custom_feedback}. Resume: {resume_text} Job Description: {jd}"
+                regenerate_cl = st.text_input("Feedback to improve Cover Letter", key="cl_feedback")
+                if st.button("Regenerate Cover Letter"):
+                    cl_prompt = f"Rewrite this cover letter to align with the following instruction: {regenerate_cl or custom_feedback}. Resume: {resume_text} Job Description: {jd}"
                     with st.spinner("Regenerating cover letter..."):
                         cl_resp = client.chat.completions.create(
                             model=model_choice,
@@ -187,11 +187,11 @@ Job Description:
                         st.session_state.cover_letter = cl_resp.choices[0].message.content
                         st.markdown(st.session_state.cover_letter)
 
-                st.subheader("🖌️ Outreach Message")
+                st.subheader("Outreach Message")
                 st.markdown(outreach)
-                regenerate_outreach = st.button("Regenerate Outreach Message")
-                if regenerate_outreach:
-                    msg_prompt = f"Regenerate a short recruiter outreach message based on this resume and job description. Make it reflect this feedback: {custom_feedback}"
+                regenerate_outreach = st.text_input("Feedback to improve Outreach Message", key="outreach_feedback")
+                if st.button("Regenerate Outreach Message"):
+                    msg_prompt = f"Regenerate a short recruiter outreach message based on this resume and job description. Make it reflect this feedback: {regenerate_outreach or custom_feedback}"
                     with st.spinner("Regenerating outreach message..."):
                         msg_resp = client.chat.completions.create(
                             model=model_choice,
