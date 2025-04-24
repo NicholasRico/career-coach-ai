@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 from openai import OpenAI
 from docx import Document
@@ -155,24 +154,41 @@ Job Description:
     )
     out = response.choices[0].message.content.strip()
 
-    # precise section extraction
+    # Improved section extraction with fallback
+    bullets_section = cover_section = outreach_section = ""
+
+    # Try regex first
     m = re.search(
-        r"(?:^|\n)1\.\s*([\s\S]*?)(?=\n2\.)"    # bullets up to 2.
-        r"(?:.*?)(?:^|\n)2\.\s*([\s\S]*?)(?=\n3\.)"  # cover up to 3.
-        r"(?:.*?)(?:^|\n)3\.\s*([\s\S]*)",        # outreach to end
+        r"(?:^|\n)1\.\s*([\s\S]*?)(?=\n2\.|\n3\.|$)"  # Bullets up to 2. or 3. or end
+        r"(?:(?:.*?)(?:^|\n)2\.\s*([\s\S]*?)(?=\n3\.|$))?"  # Cover up to 3. or end (optional)
+        r"(?:(?:.*?)(?:^|\n)3\.\s*([\s\S]*))?",  # Outreach to end (optional)
         out,
         flags=re.MULTILINE,
     )
     if m:
-        bullets_section = m.group(1).strip()
-        cover_section = m.group(2).strip()
-        outreach_section = m.group(3).strip()
+        bullets_section = m.group(1).strip() if m.group(1) else ""
+        cover_section = m.group(2).strip() if m.group(2) else ""
+        outreach_section = m.group(3).strip() if m.group(3) else ""
     else:
-        parts = out.split("\n\n")
-        bullets_section = parts[0] if len(parts) > 0 else ''
-        cover_section = parts[1] if len(parts) > 1 else ''
-        outreach_section = parts[2] if len(parts) > 2 else ''
+        # Fallback: Split by section headers
+        sections = re.split(r"\n(?=\d+\.\s)", out)
+        for section in sections:
+            if section.startswith("1."):
+                bullets_section = section.replace("1.", "").strip()
+            elif section.startswith("2."):
+                cover_section = section.replace("2.", "").strip()
+            elif section.startswith("3."):
+                outreach_section = section.replace("3.", "").strip()
 
+    # Ensure sections are not empty
+    if not bullets_section:
+        bullets_section = "No resume bullet points generated. Please try again with a different job description or feedback."
+    if not cover_section:
+        cover_section = "No cover letter generated. Please try again with a different job description or feedback."
+    if not outreach_section:
+        outreach_section = "No outreach message generated. Please try again with a different job description or feedback."
+
+    # Store in session state
     st.session_state['bullets'] = bullets_section
     if not refresh_bullets:
         st.session_state['cover'] = cover_section
@@ -183,6 +199,7 @@ Job Description:
 if 'bullets' in st.session_state:
     st.markdown("---")
     st.subheader("📌 Resume Bullets")
+    st.markdown("**Tailored Resume Bullet Points:**")
     st.markdown(st.session_state['bullets'])
     buf1 = io.BytesIO()
     d1 = Document()
@@ -213,6 +230,7 @@ if 'cover' in st.session_state:
 if 'outreach' in st.session_state:
     st.markdown("---")
     st.subheader("💬 Outreach Message")
+    st.markdown("**Personalized Outreach Message:**")
     st.markdown(st.session_state['outreach'])
     buf3 = io.BytesIO()
     d3 = Document()
